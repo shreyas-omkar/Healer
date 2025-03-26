@@ -10,7 +10,7 @@ const privateKey = fs.readFileSync('./privateKey.pem', "utf8").trim();
 
 
 const probot = new Probot({
-  appId: Number(process.env.APP_ID), 
+  appId: Number(process.env.APP_ID), // Ensure it's a number
   privateKey,
   secret: process.env.WEBHOOK_SECRET,
 });
