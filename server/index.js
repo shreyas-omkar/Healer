@@ -15,19 +15,21 @@ const probot = new Probot({
   secret: process.env.WEBHOOK_SECRET,
 });
 
-const appFn = (app) => {
-  app.on(["push", "pull_request"], async (context) => {
-    try {
-      const { owner, repo } = context.repo();
-      console.log(`📡 Event received: ${context.name} for ${owner}/${repo}`);
-    } catch (error) {
-      console.error("❌ Error processing event:", error);
-    }
-  });
-};
-
 const app = express();
-app.use(createNodeMiddleware(appFn, { probot })); 
+app.use(express.json()); // Enable JSON parsing
 
+// Route for Webhook Events
+app.post("/", (req, res) => {
+  console.log("📡 Webhook received!", req.body);
+  res.status(200).send("✅ Webhook received!");
+});
+
+// Listen for GitHub events
+probot.webhooks.on(["push", "pull_request"], async (context) => {
+  const { owner, repo } = context.repo();
+  console.log(`📡 Event received: ${context.name} for ${owner}/${repo}`);
+});
+
+// Start server
 const PORT = 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
