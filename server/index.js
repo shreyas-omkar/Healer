@@ -29,5 +29,5 @@ const appFn = (app) => {
 const app = express();
 app.use(createNodeMiddleware(appFn, { probot })); 
 
-const PORT = 5000;
+const PORT = 3000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
