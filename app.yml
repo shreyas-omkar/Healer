@@ -1,0 +1,22 @@
+name: Scriptocol
+description: AI-powered code analysis and automated fixes for your repositories
+url: https://github.com/shreyas-omkar/Healer
+hook_attributes:
+  url: https://scriptocol.herokuapp.com/webhook
+  content_type: json
+  insecure_ssl: false
+default_permissions:
+  # Repository contents
+  contents: write        # To create branches and commits
+  pull_requests: write  # To create pull requests
+  issues: write        # To create issues (for welcome message)
+  metadata: read       # To read repository information
+  statuses: write      # To update commit statuses
+
+default_events:
+  - push               # To analyze code on push
+  - pull_request      # To analyze PR changes
+  - installation      # To handle app installation
+  - installation_repositories # To handle repository additions
+
+public: true           # Make the app available to everyone 

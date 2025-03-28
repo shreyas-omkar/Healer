@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: scriptocol
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: APP_ID
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+        fromFile: server/privateKey.pem 

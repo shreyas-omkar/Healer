@@ -68,7 +68,7 @@ jobs:
           esac
 
       - name: Create Fix Branch
-        if: failure()
+        if: env.FIXES_COUNT > 0
         run: |
           git config --global user.name "Scriptocol Bot"
           git config --global user.email "bot@scriptocol.com"
@@ -78,7 +78,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Create Pull Request
-        if: failure()
+        if: env.FIXES_COUNT > 0
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -89,5 +89,9 @@ jobs:
             
             Original commit: ${{ github.sha }}
             Language: ${{ env.lang }}
+            Number of fixes: ${{ env.FIXES_COUNT }}
           branch: ${{ env.BRANCH_NAME }}
           base: main
+          labels: |
+            automated-pr
+            scriptocol

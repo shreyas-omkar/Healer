@@ -1,64 +1,91 @@
-import { OpenAI } from 'openai'; // Use your OpenAI SDK or library
+import { Octokit } from '@octokit/rest';
 import axios from 'axios';
 
-export const fixCode = async (language, code, suggestions) => {
+export const fixCode = async (req, res) => {
     try {
-        // Construct a prompt for OpenAI that will fix the entire code based on suggestions
-        const prompt = `
-      You are a skilled ${language} developer. Your task is to fix the following code based on the issues described below:
-      
-      Code:
-      \`\`\`
-      ${code}
-      \`\`\`
-
-      Issues and Suggestions:
-      ${suggestions.map(s => `- ${s}`).join("\n")}
-
-      Please apply the fixes and return the full corrected code.
-    `;
-
-        const openAI = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY, // Replace with your OpenAI API key
-        });
-
-        // Send the prompt to OpenAI
-        const response = await openAI.chat.completions.create({
-            model: "gpt-4", // You can use any GPT model like GPT-3.5 or GPT-4
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a helpful assistant that helps improve code."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-        });
-
-        const fixedCode = response.choices[0].message.content.trim();
-
-        // Send fixed code to the /testwithai endpoint for further analysis
-        const res = await axios.post('http://localhost:3000/api/testwithai', {
-            language: language,
-            code: fixedCode
-        });
-
-        // Check if there are any suggestions in the response
-        const newSuggestions = res.data.suggestions || [];
-
-        // If suggestions are found, call fixCode again until no more suggestions are present
-        if (newSuggestions.length > 0) {
-            console.log("Suggestions found, fixing code...");
-            return await fixCode(res.data.language, res.data.code, newSuggestions); // Recursive call to fixCode
-        } else {
-            console.log("No more suggestions. Code is fixed! Running final analysis...");
-            return fixedCode; // Final fixed code with no suggestions
+        const { repo, fixes } = req.body;
+        if (!repo || !fixes || !fixes.length) {
+            return res.status(400).json({ error: 'Missing required fields' });
         }
-    }
-    catch (error) {
-        console.error("Error fixing the code:", error);
-        throw error;
+
+        const [owner, repoName] = repo.split('/');
+        const octokit = new Octokit({
+            auth: process.env.GITHUB_TOKEN
+        });
+
+        // Create a new branch for fixes
+        const defaultBranch = 'main';
+        const fixBranchName = `fix/${Date.now()}`;
+
+        // Get the latest commit SHA from the default branch
+        const { data: refData } = await octokit.git.getRef({
+            owner,
+            repo: repoName,
+            ref: `heads/${defaultBranch}`
+        });
+        const latestCommitSha = refData.object.sha;
+
+        // Create a new branch
+        await octokit.git.createRef({
+            owner,
+            repo: repoName,
+            ref: `refs/heads/${fixBranchName}`,
+            sha: latestCommitSha
+        });
+
+        // Apply fixes one by one
+        for (const fix of fixes) {
+            const { file, description, suggestion } = fix;
+            
+            // Get the current file content
+            const { data: fileData } = await octokit.repos.getContent({
+                owner,
+                repo: repoName,
+                path: file,
+                ref: fixBranchName
+            });
+
+            // Decode content from base64
+            const currentContent = Buffer.from(fileData.content, 'base64').toString();
+            
+            // Apply the fix (this is a simplified version - in reality, you'd want to
+            // use a more sophisticated approach to apply the fixes)
+            const fixedContent = applyFix(currentContent, suggestion);
+
+            // Update the file with fixed content
+            await octokit.repos.createOrUpdateFileContents({
+                owner,
+                repo: repoName,
+                path: file,
+                message: `fix: ${description}`,
+                content: Buffer.from(fixedContent).toString('base64'),
+                branch: fixBranchName,
+                sha: fileData.sha
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Fixes applied successfully',
+            branch: fixBranchName
+        });
+
+    } catch (error) {
+        console.error('Error fixing code:', error);
+        return res.status(500).json({
+            error: 'Failed to apply fixes',
+            details: error.message
+        });
     }
 };
+
+// Helper function to apply a fix to the code
+function applyFix(content, suggestion) {
+    // This is a simplified version. In reality, you'd want to:
+    // 1. Parse the code to understand its structure
+    // 2. Locate the exact position where the fix needs to be applied
+    // 3. Apply the fix while preserving the code structure
+    // 4. Run tests to ensure the fix didn't break anything
+    
+    // For now, we'll just append the suggestion as a comment
+    return `${content}\n// TODO: ${suggestion}\n`;
+}
