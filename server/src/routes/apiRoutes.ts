@@ -1,9 +1,8 @@
 import express from "express";
-import { analyzeCode } from "../controllers/analyzeController.js";
-import { fixCode } from "../controllers/fixController.js";
-import { testWithAi } from "../controllers/testWithAiController.js";
-import { cacheMiddleware } from "../middlewares/cacheMiddleware.js";
 import os from "os";
+import { analyzeCode, fixCode } from "../controllers/analysisController";
+import { testWithAi } from "../controllers/testWithAiController";
+import { cacheMiddleware } from "../middlewares/cacheMiddleware";
 
 const router = express.Router();
 
@@ -25,6 +24,21 @@ router.get("/health", (req, res) => {
   });
 });
 
+// Real-time analysis status
+router.get("/analysis/status/:id", (req, res) => {
+  const { id } = req.params;
+  
+  // In a real app, you'd check a database or cache for status
+  // For now, just return a mock response
+  res.status(200).json({
+    analysisId: id,
+    status: "completed",
+    progress: 100,
+    startTime: Date.now() - 5000,
+    endTime: Date.now()
+  });
+});
+
 // Run Code Analysis - Apply cache middleware
 router.post("/analyze", cacheMiddleware, analyzeCode);
 router.post("/fix", fixCode);
@@ -36,4 +50,4 @@ router.post("/push-pr", (req, res) => {
   res.status(200).json({ message: "PR pushed" });
 });
 
-export default router;
+export default router; 
