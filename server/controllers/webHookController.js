@@ -2,8 +2,6 @@ import axios from "axios";
 
 export const webHook = async (req, res) => {
     try {
-        // Log the full payload to understand its structure
-        console.log('Received Webhook payload:', req.body);
 
         // Extract data from the payload for push events
         const repo = req.body.repository?.name;
