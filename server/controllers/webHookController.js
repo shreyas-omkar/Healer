@@ -29,7 +29,6 @@ export const webHook = async (req, res) => {
     }
 };
 
-
 // GitHub API call to trigger the workflow
 const triggerGitHubWorkflow = async (repo, prNumber, language) => {
     try {
