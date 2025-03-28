@@ -19,7 +19,7 @@ export const fixCode = async (language, code, suggestions) => {
     `;
 
         const openAI = new OpenAI({
-            apiKey: 'YOUR_OPENAI_API_KEY', // Replace with your OpenAI API key
+            apiKey: process.env.OPENAI_API_KEY, // Replace with your OpenAI API key
         });
 
         // Send the prompt to OpenAI
