@@ -8,7 +8,6 @@ const router = express.Router();
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Middleware to parse URL-encoded bodies (in case the webhook sends data this way)
 app.use(express.urlencoded({ extended: true }));
 
 
