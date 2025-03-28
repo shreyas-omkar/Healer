@@ -5,11 +5,7 @@ import { webHook } from "../controllers/webHookController.js";
 const router = express.Router();
 
 // Handle GitHub Webhooks
-router.post('/', (req, res) => {
-  console.log('Received Webhook Payload:', req.body);  // Log the full payload
-  return res.status(200).json({ message: 'Payload received' });
-});
-
+router.post("/", webHook);
 
 // Listen to PR & push events
 probot.webhooks.on(["push", "pull_request"], async (context) => {
