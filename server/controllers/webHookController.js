@@ -1,12 +1,15 @@
+import axios from "axios";
+
 export const webHook = async (req, res) => {
     try {
         // Log the full payload to understand its structure
-        console.log('Received Webhook payload:', req.body);
+        console.log('Received Webhook payload:');
 
         // Extract data from the payload
         const repo = req.body.repository.name;
         const prNumber = req.body.head_commit.id;
 
+        console.log(repo, prNumber)
         // Ensure all required data is present
         if (!repo || !prNumber) {
             console.error('Missing required fields:', { repo, prNumber });
