@@ -1,8 +1,6 @@
-/**
- * Shared types between client and server
- */
+// Types for server-side data structures
 
-// Analysis Result Structure
+// Defines the structure of a suggestion from code analysis
 export interface CodeSuggestion {
   id: string;
   type: 'warning' | 'error' | 'improvement';
@@ -16,19 +14,17 @@ export interface CodeSuggestion {
   solution?: string;
 }
 
+// The result of code analysis
 export interface AnalysisResult {
   status: 'success' | 'error' | 'fixed';
-  message?: string;
   suggestions: CodeSuggestion[];
   fixedCode?: string;
   errorMessage?: string;
-  analysisId?: string;
 }
 
-// Socket Event Types
+// Socket event types
 export interface AnalysisStartRequest {
   language: string;
-  code?: string;
 }
 
 export interface AnalysisRequest {
@@ -43,24 +39,17 @@ export interface FixRequest {
 }
 
 export interface AnalysisStartEvent {
-  analysisId: string;
   message: string;
-  progress: number;
   timestamp: number;
 }
 
 export interface AnalysisProgressEvent {
-  analysisId: string;
-  message: string;
   progress: number;
+  message: string;
   timestamp: number;
 }
 
 export interface AnalysisCompletedEvent {
-  analysisId: string;
-  message: string;
-  progress: number;
-  hasErrors: boolean;
   suggestionsCount: number;
   timestamp: number;
 } 

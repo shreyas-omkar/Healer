@@ -1,65 +1,43 @@
 import { Request } from 'express';
-import { Server, Socket } from 'socket.io';
+import { Socket } from 'socket.io';
+import {
+  CodeSuggestion,
+  AnalysisResult,
+  AnalysisStartRequest,
+  AnalysisRequest,
+  FixRequest,
+  AnalysisStartEvent,
+  AnalysisProgressEvent,
+  AnalysisCompletedEvent
+} from '../types';
 
-// Defines the structure of a suggestion from code analysis
-export interface CodeSuggestion {
-  id: string;
-  type: 'warning' | 'error' | 'improvement';
-  message: string;
-  line?: number;
-  column?: number;
-  endLine?: number;
-  endColumn?: number;
-  severity: 'low' | 'medium' | 'high';
-  codeSnippet?: string;
-  solution?: string;
+// Re-export the main types
+export {
+  CodeSuggestion,
+  AnalysisResult,
+  AnalysisStartRequest,
+  AnalysisRequest,
+  FixRequest,
+  AnalysisStartEvent,
+  AnalysisProgressEvent,
+  AnalysisCompletedEvent
+};
+
+// Legacy types - keeping for backward compatibility
+export interface CodeAnalysisRequest {
+  code: string;
+  language: string;
 }
 
-// The result of code analysis
-export interface AnalysisResult {
-  status: 'success' | 'error' | 'fixed';
+export interface CodeFixRequest extends CodeAnalysisRequest {
+  suggestions: CodeSuggestion[];
+}
+
+export interface CodeAnalysisResult {
+  status: string;
+  message?: string;
   suggestions: CodeSuggestion[];
   fixedCode?: string;
-  errorMessage?: string;
-}
-
-// Socket event types
-export interface AnalysisStartRequest {
-  language: string;
-}
-
-export interface AnalysisRequest {
-  code: string;
-  language: string;
-}
-
-export interface FixRequest {
-  code: string;
-  language: string;
-  suggestions: CodeSuggestion[];
-}
-
-export interface AnalysisStartEvent {
-  message: string;
-  timestamp: number;
-  analysisId?: string;
-  progress?: number;
-}
-
-export interface AnalysisProgressEvent {
-  progress: number;
-  message: string;
-  timestamp: number;
-  analysisId?: string;
-}
-
-export interface AnalysisCompletedEvent {
-  suggestionsCount: number;
-  timestamp: number;
-  analysisId?: string;
-  message?: string;
-  progress?: number;
-  hasErrors?: boolean;
 }
 
 // Express extensions
@@ -73,7 +51,7 @@ export interface AnalysisSocketData {
 }
 
 export interface AppLocals {
-  io: Server;
+  io: Socket;
   analysisSocket?: Socket;
 }
 
