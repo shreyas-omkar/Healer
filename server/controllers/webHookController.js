@@ -8,6 +8,7 @@ export const webHook = async (req, res) => {
         // Extract data from the payload
         const repo = req.body.repository.name;
         const prNumber = req.body.head_commit.id;
+        const owner = req.body.repository.owner.name;
 
         console.log(repo, prNumber)
         if (!repo || !prNumber) {
@@ -16,7 +17,7 @@ export const webHook = async (req, res) => {
         }
 
         // Step 2: Trigger GitHub Actions or further processing
-        const workflowResponse = await triggerGitHubWorkflow(repo, prNumber);
+        const workflowResponse = await triggerGitHubWorkflow(repo, prNumber, owner);
 
         if (workflowResponse.status === 201) {
             console.log('Workflow triggered successfully');
@@ -33,10 +34,11 @@ export const webHook = async (req, res) => {
 };
 
 // GitHub API call to trigger the workflow
-const triggerGitHubWorkflow = async (repo, prNumber) => {
+const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
     try {
         const response = await axios.post(
-            `https://api.github.com/repos/${repo}/actions/workflows/scriptocol.yml/dispatches`,  // Replace with your actual workflow file name
+            `POST https://api.github.com/repos/${owner}/${repo}/actions/workflows/{workflow_file}/dispatches
+`,  // Replace with your actual workflow file name
             {
                 ref: 'main',  // This Test should be the branch you want to trigger the workflow on (typically main or any other active branch)
                 inputs: {
