@@ -2,7 +2,6 @@ import express from "express";
 import { analyzeCode } from "../controllers/analyzeController.js";
 import { fixCode } from "../controllers/fixController.js";
 import { testWithAi } from "../controllers/testWithAiController.js";
-import { cacheMiddleware } from "../middlewares/cacheMiddleware.js";
 import os from "os";
 
 const router = express.Router();
@@ -26,7 +25,7 @@ router.get("/health", (req, res) => {
 });
 
 // Run Code Analysis - Apply cache middleware
-router.post("/analyze", cacheMiddleware, analyzeCode);
+router.post("/analyze", analyzeCode);
 router.post("/fix", fixCode);
 router.post("/testwithai", testWithAi);
 
