@@ -16,14 +16,19 @@ export const analyze = async (req, res) => {
             });
         }
 
+        console.log('Starting analysis for:', { repo, lang });
+
         // Get repository files
         const files = await getRepoFiles(repo);
+        console.log('Found files:', files.map(f => f.path));
         
         // Analyze code using OpenAI
         const analysis = await analyzeWithAI(files, lang);
+        console.log('Analysis completed:', analysis);
         
         // Generate fixes
         const fixes = await generateFixes(analysis, files, lang);
+        console.log('Fixes generated:', fixes.length);
         
         return res.status(200).json({
             message: 'Analysis completed',
@@ -41,6 +46,12 @@ export const analyze = async (req, res) => {
 
 async function getRepoFiles(repo) {
     try {
+        // Ensure repo is in the format owner/repo
+        if (!repo.includes('/')) {
+            throw new Error('Repository must be in the format owner/repo');
+        }
+
+        console.log('Fetching contents for repository:', repo);
         const response = await axios.get(`https://api.github.com/repos/${repo}/contents`, {
             headers: {
                 Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -48,15 +59,25 @@ async function getRepoFiles(repo) {
             }
         });
         
+        console.log('Found files:', response.data.map(file => file.name));
+        
         const files = [];
-        for (const file of response.data) {
-            if (file.type === 'file') {
-                const content = await axios.get(file.download_url);
-                files.push({
-                    name: file.name,
-                    path: file.path,
-                    content: content.data
-                });
+        for (const item of response.data) {
+            if (item.type === 'file') {
+                try {
+                    const content = await axios.get(item.download_url);
+                    files.push({
+                        name: item.name,
+                        path: item.path,
+                        content: content.data
+                    });
+                } catch (error) {
+                    console.error(`Error fetching content for ${item.path}:`, error.message);
+                }
+            } else if (item.type === 'dir') {
+                // Recursively get contents of directories
+                const dirFiles = await getDirectoryContents(repo, item.path);
+                files.push(...dirFiles);
             }
         }
         
@@ -64,6 +85,41 @@ async function getRepoFiles(repo) {
     } catch (error) {
         console.error('Error getting repo files:', error);
         throw error;
+    }
+}
+
+async function getDirectoryContents(repo, path) {
+    try {
+        const response = await axios.get(`https://api.github.com/repos/${repo}/contents/${path}`, {
+            headers: {
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                Accept: 'application/vnd.github.v3+json'
+            }
+        });
+
+        const files = [];
+        for (const item of response.data) {
+            if (item.type === 'file') {
+                try {
+                    const content = await axios.get(item.download_url);
+                    files.push({
+                        name: item.name,
+                        path: item.path,
+                        content: content.data
+                    });
+                } catch (error) {
+                    console.error(`Error fetching content for ${item.path}:`, error.message);
+                }
+            } else if (item.type === 'dir') {
+                // Recursively get contents of subdirectories
+                const dirFiles = await getDirectoryContents(repo, item.path);
+                files.push(...dirFiles);
+            }
+        }
+        return files;
+    } catch (error) {
+        console.error(`Error getting contents for directory ${path}:`, error);
+        return [];
     }
 }
 

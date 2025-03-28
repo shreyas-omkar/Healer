@@ -42,9 +42,12 @@ export const webHook = async (req, res) => {
 
         console.log('Detected language:', lang);
 
-        // Call the analyze function directly
+        // Call the analyze function directly with the full repository path
         const analyzeResponse = await analyze({
-            body: { repo, lang }
+            body: { 
+                repo: `${owner}/${repo}`,
+                lang 
+            }
         }, res);
         
         return analyzeResponse;
@@ -61,6 +64,7 @@ export const webHook = async (req, res) => {
 // Function to detect repository language
 async function detectLanguage(owner, repo, branch) {
     try {
+        console.log('Detecting language for:', `${owner}/${repo}`);
         const response = await axios.get(
             `https://api.github.com/repos/${owner}/${repo}/contents`,
             {
