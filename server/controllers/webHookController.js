@@ -39,7 +39,7 @@ const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
         const response = await axios.post(
             `https://api.github.com/repos/${owner}/${repo}/actions/workflows/scriptocol.yml/dispatches`,  // Correct URL without 'POST' keyword
             {
-                ref: 'main',  // This should be the branch you want to trigger the workflow on (typically main or any other active branch)
+                ref: 'main', 
                 inputs: {
                     prNumber: prNumber,
                 }
