@@ -37,7 +37,7 @@ export const webHook = async (req, res) => {
 const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
     try {
         const response = await axios.post(
-            `POST https://api.github.com/repos/${owner}/${repo}/actions/workflows/{workflow_file}/dispatches
+            `POST https://api.github.com/repos/${owner}/${repo}/actions/workflows/scriptocol.yml/dispatches
 `,  // Replace with your actual workflow file name
             {
                 ref: 'main',  // This Test should be the branch you want to trigger the workflow on (typically main or any other active branch)
