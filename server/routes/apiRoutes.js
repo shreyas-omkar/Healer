@@ -1,24 +1,14 @@
 import express from "express";
+import { analyzeCode } from "../controllers/analyzeController.js";
+import {fixCode} from "../controllers/fixController.js";
+import { testWithAi } from "../controllers/testWithAiController.js";
 
 const router = express.Router();
 
 // Run Code Analysis
-router.post("/analyze", (req, res) => {
-  console.log("🔍 Running code analysis...");
-  res.status(200).json({ message: "Code analyzed successfully" });
-});
-
-// Run Tests
-router.post("/test", (req, res) => {
-  console.log("🧪 Running tests...");
-  res.status(200).json({ message: "Tests executed successfully" });
-});
-
-// AI Fixes Code
-router.post("/fix", (req, res) => {
-  console.log("🤖 AI Fixing code...");
-  res.status(200).json({ message: "AI fixes applied" });
-});
+router.post("/analyze", analyzeCode);
+router.post("/fix",fixCode);
+router.post("/testwithai", testWithAi)
 
 // Push PR if Necessary
 router.post("/push-pr", (req, res) => {

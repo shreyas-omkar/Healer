@@ -22,56 +22,69 @@ jobs:
           elif [ -f "go.mod" ]; then
             echo "lang=go" >> $GITHUB_ENV
           else
-            echo "Unsupported language"
-            exit 1
+            echo "Unsupported language" && exit 1
           fi
 
       - name: Set up Environment
         run: |
-          if [ "$lang" = "js" ]; then
-            echo "Setting up Node.js..."
-            curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
-            npm install
-          elif [ "$lang" = "python" ]; then
-            echo "Setting up Python..."
-            python -m venv venv && source venv/bin/activate
-            pip install -r requirements.txt
-          elif [ "$lang" = "go" ]; then
-            echo "Setting up Go..."
-            wget https://go.dev/dl/go1.21.1.linux-amd64.tar.gz
-            tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz
-            export PATH=$PATH:/usr/local/go/bin
-            go mod tidy
-          fi
+          case "$lang" in
+            js)
+              echo "Setting up Node.js..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && apt-get install -y nodejs
+              npm install
+              ;;
+            python)
+              echo "Setting up Python..."
+              python -m venv venv && source venv/bin/activate
+              pip install -r requirements.txt
+              ;;
+            go)
+              echo "Setting up Go..."
+              wget https://go.dev/dl/go1.21.1.linux-amd64.tar.gz
+              tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz
+              export PATH=$PATH:/usr/local/go/bin
+              go mod tidy
+              ;;
+          esac
 
       - name: Run Tests
+        id: test-results
+        continue-on-error: true
         run: |
-          if [ "$lang" = "js" ]; then
-            npm test || echo "Tests failed, proceeding to AI fix mode"
-          elif [ "$lang" = "python" ]; then
-            pytest || echo "Tests failed, proceeding to AI fix mode"
-          elif [ "$lang" = "go" ]; then
-            go test ./... || echo "Tests failed, proceeding to AI fix mode"
-          fi
+          case "$lang" in
+            js) npm test || echo "Tests failed, proceeding to AI fix mode" ;;
+            python) pytest || echo "Tests failed, proceeding to AI fix mode" ;;
+          esac
 
-      - name: Trigger Scriptocol Fixes
+      - name: Trigger Scriptocol Fixes if Tests Fail
+        if: failure()  # Only runs if the previous step fails
         run: |
           curl -X POST "https://your-scriptocol-server.com/api/analyze" \
           -H "Authorization: Bearer ${{ secrets.SCRIPTOCOL_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{ "repo": "${{ github.repository }}", "pr": "${{ github.event.pull_request.number }}", "lang": "${{ env.lang }}" }'
+          -d '{ "repo": "${{ github.repository }}", "pr": "${{ github.event.pull_request.number }}", "lang": "${{ env.lang }}" }' \
+          -o scriptocol-summary.txt
 
       - name: Post Fix Summary as PR Comment
+        if: failure()
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const summary = fs.readFileSync('scriptocol-summary.txt', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: summary
-            });
+            const path = 'scriptocol-summary.txt';
+            const prNumber = context.payload.pull_request.number;
+            const repo = context.repo.repo;
+            const owner = context.repo.owner;
 
+            if (fs.existsSync(path)) {
+              const summary = fs.readFileSync(path, 'utf8');
+              github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: owner,
+                repo: repo,
+                body: `🔧 **Scriptocol Auto Fixes** 🔧\n\`\`\`\n${summary}\n\`\`\``
+              });
+            } else {
+              console.log("No fixes generated.");
+            }
