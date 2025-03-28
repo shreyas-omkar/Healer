@@ -59,11 +59,13 @@ jobs:
       - name: Trigger Scriptocol Fixes if Tests Fail
         if: failure()  # Only runs if the previous step fails
         run: |
-          curl -X POST "https://6136-103-92-103-33.ngrok-free.app/analyze" \
-          -H "Authorization: Bearer ${{ secrets.SCRIPTOCOL_API_KEY }}" \
+          # Replace this URL with your permanent URL once ngrok is no longer used
+          response=$(curl -X POST "https://your-permanent-url/analyze" \
           -H "Content-Type: application/json" \
           -d '{ "repo": "${{ github.repository }}", "pr": "${{ github.event.pull_request.number }}", "lang": "${{ env.lang }}" }' \
-          -o scriptocol-summary.txt
+          -w "%{http_code}" -o scriptocol-summary.txt)
+          echo "API Response Code: $response"
+          cat scriptocol-summary.txt
 
       - name: Post Fix Summary as PR Comment
         if: failure()
