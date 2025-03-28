@@ -3,17 +3,19 @@ import axios from "axios";
 export const webHook = async (req, res) => {
     try {
         // Log the full payload to understand its structure
-        console.log('Received Webhook payload:');
+        console.log('Received Webhook payload:', req.body);
 
-        // Extract data from the payload
+        // Extract data from the payload (adjusting field names for GitHub PR webhook)
         const repo = req.body.repository.name;
-        const prNumber = req.body.head_commit.id;
-        const owner = req.body.repository.owner.name;
+        const prNumber = req.body.pull_request ? req.body.pull_request.number : null;
+        const owner = req.body.repository.owner.login;  // GitHub uses 'login' for user/organization name
 
-        console.log(repo, prNumber)
-        if (!repo || !prNumber) {
-            console.error('Missing required fields:', { repo, prNumber });
-            return res.status(400).json({ error: 'Missing required fields: code, language, repo, or prNumber' });
+        // Log extracted values
+        console.log('Repo:', repo, 'PR Number:', prNumber, 'Owner:', owner);
+
+        if (!repo || !prNumber || !owner) {
+            console.error('Missing required fields:', { repo, prNumber, owner });
+            return res.status(400).json({ error: 'Missing required fields: repo, prNumber, or owner' });
         }
 
         // Step 2: Trigger GitHub Actions or further processing
@@ -39,9 +41,9 @@ const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
         const response = await axios.post(
             `https://api.github.com/repos/${owner}/${repo}/actions/workflows/scriptocol.yml/dispatches`,  // Correct URL without 'POST' keyword
             {
-                ref: 'main', 
+                ref: 'main',  // Ensure this is the correct branch
                 inputs: {
-                    prNumber: prNumber,
+                    prNumber: prNumber,  // Passing the PR number as input
                 }
             },
             {
@@ -52,7 +54,7 @@ const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
         );
         return response;
     } catch (error) {
-        console.error('Error triggering GitHub Actions workflow:', error);
-        throw error;
+        console.error('Error triggering GitHub Actions workflow:', error.response?.data || error.message || error);
+        throw error;  // Rethrow the error after logging
     }
 };
