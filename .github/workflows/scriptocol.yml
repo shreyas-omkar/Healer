@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main  # This will trigger the workflow on any push to the main branch
+  workflow_dispatch:  # This will allow you to trigger the workflow manually
+    inputs:
+      commitId:
+        description: 'Commit ID for the workflow'
+        required: true
+        type: string
 
 jobs:
   test-and-analyze:
