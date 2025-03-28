@@ -37,3 +37,14 @@ Thumbs.db
 
 # GitHub Actions / Probot logs
 probot.log
+
+# Security sensitive files
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+*.jks
+*.keystore
+secrets/
