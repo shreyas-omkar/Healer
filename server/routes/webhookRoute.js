@@ -6,9 +6,11 @@ const router = express.Router();
 
 // Handle GitHub Webhooks
 router.post('/', (req, res) => {
-    console.log('Received Webhook Payload:', req.body);  // Log the full payload
-    return res.status(200).json({ message: 'Payload received' });
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  res.status(200).send('Webhook received');
 });
+
 
 
 // Listen to PR & push events
