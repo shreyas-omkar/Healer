@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Your webhook route
-router.post('/webhook', (req, res) => {
+router.post('/', (req, res) => {
   console.log("Received Webhook Payload:", req.body); // Logs the parsed payload
   res.status(200).send('Webhook received');
 });
