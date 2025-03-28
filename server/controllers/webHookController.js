@@ -4,16 +4,17 @@ export const webHook = async (req, res) => {
         console.log('Received Webhook payload:', req.body);
 
         // Extract data from the payload
-        const { code, language, repo, prNumber } = req.body;
+        const repo = req.body.repository.name;
+        const prNumber = req.body.head_commit.id;
 
         // Ensure all required data is present
-        if (!code || !language || !repo || !prNumber) {
-            console.error('Missing required fields:', { code, language, repo, prNumber });
+        if (!repo || !prNumber) {
+            console.error('Missing required fields:', { repo, prNumber });
             return res.status(400).json({ error: 'Missing required fields: code, language, repo, or prNumber' });
         }
 
         // Step 2: Trigger GitHub Actions or further processing
-        const workflowResponse = await triggerGitHubWorkflow(repo, prNumber, language);
+        const workflowResponse = await triggerGitHubWorkflow(repo, prNumber);
 
         if (workflowResponse.status === 201) {
             console.log('Workflow triggered successfully');
@@ -30,7 +31,7 @@ export const webHook = async (req, res) => {
 };
 
 // GitHub API call to trigger the workflow
-const triggerGitHubWorkflow = async (repo, prNumber, language) => {
+const triggerGitHubWorkflow = async (repo, prNumber) => {
     try {
         const response = await axios.post(
             `https://api.github.com/repos/${repo}/actions/workflows/scriptocol.yml/dispatches`,  // Replace with your actual workflow file name
@@ -38,7 +39,6 @@ const triggerGitHubWorkflow = async (repo, prNumber, language) => {
                 ref: 'main',  // This Test should be the branch you want to trigger the workflow on (typically main or any other active branch)
                 inputs: {
                     prNumber: prNumber,
-                    lang: language
                 }
             },
             {
