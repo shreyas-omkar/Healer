@@ -64,14 +64,20 @@ jobs:
           esac
 
       - name: Trigger Scriptocol Fixes if Tests Fail
-        if: failure()  # Only runs if the previous step fails
+        if: failure()
         run: |
-          # Replace this URL with your permanent URL once ngrok is no longer used
-          response=$(curl -X POST "https://your-permanent-url/analyze" \
+          echo "Triggering Scriptocol fixes..."
+          response=$(curl -X POST "http://localhost:3000/api/analyze" \
           -H "Content-Type: application/json" \
           -d '{ "repo": "${{ github.repository }}", "lang": "${{ env.lang }}" }' \
           -w "%{http_code}" -o scriptocol-summary.txt)
+          
           echo "API Response Code: $response"
+          if [ "$response" != "200" ]; then
+            echo "Failed to trigger fixes. Response code: $response"
+            cat scriptocol-summary.txt
+            exit 1
+          fi
           cat scriptocol-summary.txt
 
       - name: Post Fix Summary as PR Comment
@@ -88,7 +94,7 @@ jobs:
             if (fs.existsSync(path)) {
               const summary = fs.readFileSync(path, 'utf8');
               github.rest.issues.createComment({
-                issue_number: 1,  # PR number needs to be passed explicitly for push event (no PR context)
+                issue_number: context.issue.number,
                 owner: owner,
                 repo: repo,
                 body: `🔧 **Scriptocol Auto Fixes** 🔧\n\`\`\`\n${summary}\n\`\`\``
