@@ -39,6 +39,15 @@ export const analyzeCode = async (req, res) => {
                     language, 
                     suggestions: filteredSuggestions 
                 });
+                //Pushing A PR
+                try {
+                    await axios.post("http://localhost:3000/api/push_pr", { 
+                        code: fixResponse.data.fixedCode
+                    });
+                    console.log(" PR pushed!");
+                } catch (pushError) {
+                    console.error("Error calling /push-pr endpoint:", pushError);
+                }
                 return res.status(200).json({ status: "fixed", fixedCode: fixResponse.data.fixedCode });
 
             } catch (fixError) {
