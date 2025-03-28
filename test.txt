@@ -1,5 +1,5 @@
-This is a test file to trigger the webhook and test PR creation.
-The server should analyze this and create a PR if needed.
+This is a test file to trigger the webhook and test the PR creation functionality.
+The server should analyze this change and create a PR if issues are found.
 Testing webhook with server running in background.
 Testing language detection and analysis.
 Testing PR creation with GitHub Actions workflow.
