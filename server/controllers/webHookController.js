@@ -10,8 +10,9 @@ export const webHook = async (req, res) => {
         const commitId = req.body.head_commit?.id;
         const owner = req.body.repository?.owner?.login;
         const branch = req.body.ref?.split('/').pop();
+        const repoLanguage = req.body.repository?.language?.toLowerCase();
 
-        console.log('Extracted values:', { repo, commitId, owner, branch });
+        console.log('Extracted values:', { repo, commitId, owner, branch, repoLanguage });
 
         // Ensure all required fields are present
         if (!repo || !commitId || !owner || !branch) {
@@ -22,9 +23,28 @@ export const webHook = async (req, res) => {
             });
         }
 
+        // First try to use the repository's language field
+        let lang;
+        if (repoLanguage) {
+            if (repoLanguage.includes('javascript') || repoLanguage.includes('typescript')) {
+                lang = 'js';
+            } else if (repoLanguage.includes('python')) {
+                lang = 'python';
+            } else if (repoLanguage.includes('go')) {
+                lang = 'go';
+            }
+        }
+
+        // If language not detected from repository field, try to detect from files
+        if (!lang) {
+            lang = await detectLanguage(owner, repo, branch);
+        }
+
+        console.log('Detected language:', lang);
+
         // Call the analyze function directly
         const analyzeResponse = await analyze({
-            body: { repo, lang: await detectLanguage(owner, repo, branch) }
+            body: { repo, lang }
         }, res);
         
         return analyzeResponse;
@@ -54,12 +74,20 @@ async function detectLanguage(owner, repo, branch) {
             }
         );
 
+        console.log('Repository contents:', response.data.map(file => file.name));
+
         const files = response.data;
         if (files.some(file => file.name === 'package.json')) return 'js';
         if (files.some(file => file.name === 'requirements.txt')) return 'python';
         if (files.some(file => file.name === 'go.mod')) return 'go';
         
-        throw new Error('Unsupported language');
+        // If no language-specific files found, try to detect from file extensions
+        const extensions = new Set(files.map(file => file.name.split('.').pop().toLowerCase()));
+        if (extensions.has('js') || extensions.has('jsx') || extensions.has('ts') || extensions.has('tsx')) return 'js';
+        if (extensions.has('py')) return 'python';
+        if (extensions.has('go')) return 'go';
+        
+        throw new Error('Unsupported language - No language-specific files or extensions found');
     } catch (error) {
         console.error('Error detecting language:', error);
         throw error;
