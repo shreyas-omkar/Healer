@@ -1,13 +1,11 @@
 import express from "express";
 import { probot } from "../probot.js";
+import { webHook } from "../controllers/webHookController.js";
 
 const router = express.Router();
 
 // Handle GitHub Webhooks
-router.post("/", (req, res) => {
-  console.log("📡 Webhook received!", req.body);
-  res.status(200).send("✅ Webhook received!");
-});
+router.post("/", webHook);
 
 // Listen to PR & push events
 probot.webhooks.on(["push", "pull_request"], async (context) => {
