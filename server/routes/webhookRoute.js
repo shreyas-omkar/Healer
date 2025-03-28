@@ -5,7 +5,7 @@ import { webHook } from "../controllers/webHookController.js";
 const router = express.Router();
 
 // Handle GitHub Webhooks
-app.post('/webhook', (req, res) => {
+router.post('/webhook', (req, res) => {
     console.log('Received Webhook Payload:', req.body);  // Log the full payload
     return res.status(200).json({ message: 'Payload received' });
 });
