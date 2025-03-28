@@ -5,21 +5,23 @@ export const webHook = async (req, res) => {
         // Log the full payload to understand its structure
         console.log('Received Webhook payload:', req.body);
 
-        // Extract data from the payload (adjusting field names for GitHub PR webhook)
-        const repo = req.body.repository.name;
-        const prNumber = req.body.pull_request ? req.body.pull_request.number : null;
-        const owner = req.body.repository.owner.login;  // GitHub uses 'login' for user/organization name
+        // Extract data from the payload for push events
+        const repo = req.body.repository?.name;
+        const commitId = req.body.head_commit?.id;
+        const owner = req.body.repository?.owner?.login;  // GitHub uses 'login' for user/organization name
+        const branch = req.body.ref?.split('/').pop();  // Extract the branch name from the ref field
 
         // Log extracted values
-        console.log('Repo:', repo, 'PR Number:', prNumber, 'Owner:', owner);
+        console.log('Repo:', repo, 'Commit ID:', commitId, 'Owner:', owner, 'Branch:', branch);
 
-        if (!repo || !prNumber || !owner) {
-            console.error('Missing required fields:', { repo, prNumber, owner });
-            return res.status(400).json({ error: 'Missing required fields: repo, prNumber, or owner' });
+        // Ensure all required fields are present
+        if (!repo || !commitId || !owner || !branch) {
+            console.error('Missing required fields:', { repo, commitId, owner, branch });
+            return res.status(400).json({ error: 'Missing required fields: repo, commitId, owner, or branch' });
         }
 
         // Step 2: Trigger GitHub Actions or further processing
-        const workflowResponse = await triggerGitHubWorkflow(repo, prNumber, owner);
+        const workflowResponse = await triggerGitHubWorkflow(repo, commitId, owner, branch);
 
         if (workflowResponse.status === 201) {
             console.log('Workflow triggered successfully');
@@ -36,14 +38,14 @@ export const webHook = async (req, res) => {
 };
 
 // GitHub API call to trigger the workflow
-const triggerGitHubWorkflow = async (repo, prNumber, owner) => {
+const triggerGitHubWorkflow = async (repo, commitId, owner, branch) => {
     try {
         const response = await axios.post(
             `https://api.github.com/repos/${owner}/${repo}/actions/workflows/scriptocol.yml/dispatches`,  // Correct URL without 'POST' keyword
             {
-                ref: 'main',  // Ensure this is the correct branch
+                ref: branch,  // Use the branch from the push event
                 inputs: {
-                    prNumber: prNumber,  // Passing the PR number as input
+                    commitId: commitId,  // Passing the commit ID as input
                 }
             },
             {

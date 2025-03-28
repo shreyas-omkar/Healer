@@ -1,8 +1,9 @@
 name: Scriptocol CI
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main  # This will trigger the workflow on any push to the main branch
 
 jobs:
   test-and-analyze:
@@ -62,7 +63,7 @@ jobs:
           # Replace this URL with your permanent URL once ngrok is no longer used
           response=$(curl -X POST "https://your-permanent-url/analyze" \
           -H "Content-Type: application/json" \
-          -d '{ "repo": "${{ github.repository }}", "pr": "${{ github.event.pull_request.number }}", "lang": "${{ env.lang }}" }' \
+          -d '{ "repo": "${{ github.repository }}", "lang": "${{ env.lang }}" }' \
           -w "%{http_code}" -o scriptocol-summary.txt)
           echo "API Response Code: $response"
           cat scriptocol-summary.txt
@@ -75,14 +76,13 @@ jobs:
           script: |
             const fs = require('fs');
             const path = 'scriptocol-summary.txt';
-            const prNumber = context.payload.pull_request.number;
             const repo = context.repo.repo;
             const owner = context.repo.owner;
 
             if (fs.existsSync(path)) {
               const summary = fs.readFileSync(path, 'utf8');
               github.rest.issues.createComment({
-                issue_number: prNumber,
+                issue_number: 1,  # PR number needs to be passed explicitly for push event (no PR context)
                 owner: owner,
                 repo: repo,
                 body: `🔧 **Scriptocol Auto Fixes** 🔧\n\`\`\`\n${summary}\n\`\`\``
