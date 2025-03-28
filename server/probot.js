@@ -2,23 +2,40 @@ import { Probot } from "probot";
 import fs from "fs";
 import dotenv from "dotenv";
 import { analyze } from "./controllers/analyzeController.js";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Get private key from environment variable or file
-let privateKey;
-if (process.env.PRIVATE_KEY) {
-    privateKey = process.env.PRIVATE_KEY;
-} else if (fs.existsSync("./privateKey.pem")) {
-    privateKey = fs.readFileSync("./privateKey.pem", "utf8").trim();
-} else {
-    throw new Error("No private key found in environment variables or privateKey.pem file");
+// Try to load .env file if it exists
+try {
+    dotenv.config();
+} catch (error) {
+    console.log('No .env file found, using environment variables from Render');
+}
+
+// Get private key from file
+const privateKeyPath = path.join(__dirname, 'privateKey.pem');
+if (!fs.existsSync(privateKeyPath)) {
+    throw new Error(`Private key file not found at: ${privateKeyPath}`);
+}
+
+const privateKey = fs.readFileSync(privateKeyPath, "utf8").trim();
+console.log('Private key loaded from file');
+
+// Validate required environment variables
+const requiredEnvVars = ['APP_ID', 'WEBHOOK_SECRET', 'OPENAI_API_KEY'];
+for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+        throw new Error(`Missing required environment variable: ${envVar}`);
+    }
 }
 
 export const probot = new Probot({
-  appId: Number(process.env.APP_ID),
-  privateKey,
-  secret: process.env.WEBHOOK_SECRET,
+    appId: Number(process.env.APP_ID),
+    privateKey,
+    secret: process.env.WEBHOOK_SECRET,
 });
 
 // Handle push events
