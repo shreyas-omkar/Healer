@@ -2,5 +2,5 @@ This is a test file to trigger the webhook and test PR creation.
 The server should analyze this and create a PR if needed.
 Testing webhook with server running in background.
 Testing language detection and analysis.
-Testing PR creation with Octokit.
+Testing PR creation with GitHub Actions workflow.
 Testing fixController and pushPRController integration. 
