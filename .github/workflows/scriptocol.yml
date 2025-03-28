@@ -67,6 +67,7 @@ jobs:
         if: failure()
         run: |
           echo "Triggering Scriptocol fixes..."
+          # Using localhost for development testing
           response=$(curl -X POST "http://localhost:3000/api/analyze" \
           -H "Content-Type: application/json" \
           -d '{ "repo": "${{ github.repository }}", "lang": "${{ env.lang }}" }' \
