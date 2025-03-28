@@ -7,10 +7,9 @@ export const webHook = async (req, res) => {
         // Extract data from the payload for push events
         const repo = req.body.repository?.name;
         const commitId = req.body.head_commit?.id;
-        const owner = req.body.repository?.owner?.login;  // GitHub uses 'login' for user/organization name
-        const branch = req.body.ref?.split('/').pop();  // Extract the branch name from the ref field
+        const owner = req.body.repository?.owner?.login;
+        const branch = req.body.ref?.split('/').pop();
 
-        // Log extracted values
         console.log('Extracted values:', { repo, commitId, owner, branch });
 
         // Ensure all required fields are present
@@ -22,22 +21,10 @@ export const webHook = async (req, res) => {
             });
         }
 
-        // Step 2: Trigger GitHub Actions or further processing
-        const workflowResponse = await triggerGitHubWorkflow(repo, commitId, owner, branch);
-
-        if (workflowResponse.status === 201) {
-            console.log('Workflow triggered successfully');
-            return res.status(200).json({ 
-                message: 'GitHub Actions workflow triggered successfully!',
-                details: workflowResponse.data
-            });
-        } else {
-            console.error('Failed to trigger workflow:', workflowResponse);
-            return res.status(500).json({ 
-                error: 'Failed to trigger GitHub Actions workflow',
-                details: workflowResponse.data
-            });
-        }
+        // Instead of triggering workflow, directly analyze the code
+        const analyzeResponse = await analyzeCode(repo, commitId, owner, branch);
+        return res.status(200).json(analyzeResponse);
+        
     } catch (error) {
         console.error('Error processing webhook:', error);
         return res.status(500).json({ 
@@ -47,22 +34,71 @@ export const webHook = async (req, res) => {
     }
 };
 
-// GitHub API call to trigger the workflow
-const triggerGitHubWorkflow = async (repo, commitId, owner, branch) => {
+// Function to analyze code directly
+const analyzeCode = async (repo, commitId, owner, branch) => {
     try {
-        console.log('Triggering workflow for:', { repo, commitId, owner, branch });
-        
-        if (!process.env.GITHUB_TOKEN) {
-            throw new Error('GITHUB_TOKEN environment variable is not set');
-        }
-
-        const response = await axios.post(
-            `https://api.github.com/repos/${owner}/${repo}/actions/workflows/scriptocol.yml/dispatches`,
+        // Get the repository content using GitHub API
+        const repoContent = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/contents`,
             {
-                ref: branch,
-                inputs: {
-                    commitId: commitId,
+                headers: {
+                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json'
+                },
+                params: {
+                    ref: commitId
                 }
+            }
+        );
+
+        // Detect language based on files
+        const hasPackageJson = repoContent.data.some(file => file.name === 'package.json');
+        const hasRequirementsTxt = repoContent.data.some(file => file.name === 'requirements.txt');
+        const hasGoMod = repoContent.data.some(file => file.name === 'go.mod');
+
+        let lang;
+        if (hasPackageJson) lang = 'js';
+        else if (hasRequirementsTxt) lang = 'python';
+        else if (hasGoMod) lang = 'go';
+        else throw new Error('Unsupported language');
+
+        // Create a PR with fixes if needed
+        const prResponse = await createPullRequest(owner, repo, branch, commitId, lang);
+        
+        return {
+            message: 'Analysis completed',
+            language: lang,
+            pullRequest: prResponse.data
+        };
+    } catch (error) {
+        console.error('Error analyzing code:', error);
+        throw error;
+    }
+};
+
+// Function to create a pull request with fixes
+const createPullRequest = async (owner, repo, branch, commitId, lang) => {
+    try {
+        // Create a new branch for fixes
+        const fixBranch = `fix/${commitId.substring(0, 7)}`;
+        
+        // Get the latest commit SHA from the base branch
+        const baseRef = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            }
+        );
+
+        // Create a new branch
+        await axios.post(
+            `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+            {
+                ref: `refs/heads/${fixBranch}`,
+                sha: baseRef.data.object.sha
             },
             {
                 headers: {
@@ -71,15 +107,25 @@ const triggerGitHubWorkflow = async (repo, commitId, owner, branch) => {
                 }
             }
         );
-        
-        console.log('Workflow trigger response:', response.data);
-        return response;
+
+        // Create pull request
+        return await axios.post(
+            `https://api.github.com/repos/${owner}/${repo}/pulls`,
+            {
+                title: `[Scriptocol] Automated fixes for ${commitId.substring(0, 7)}`,
+                body: `Automated fixes generated by Scriptocol for commit ${commitId}`,
+                head: fixBranch,
+                base: branch
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            }
+        );
     } catch (error) {
-        console.error('Error triggering GitHub Actions workflow:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-        });
+        console.error('Error creating pull request:', error);
         throw error;
     }
 };
