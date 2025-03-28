@@ -10,7 +10,6 @@ export const webHook = async (req, res) => {
         const prNumber = req.body.head_commit.id;
 
         console.log(repo, prNumber)
-        // Ensure all required data is present
         if (!repo || !prNumber) {
             console.error('Missing required fields:', { repo, prNumber });
             return res.status(400).json({ error: 'Missing required fields: code, language, repo, or prNumber' });
