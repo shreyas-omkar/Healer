@@ -5,7 +5,6 @@ import { webHook } from "../controllers/webHookController.js";
 const app = express();
 const router = express.Router();
 
-// Middleware to parse JSON bodies
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
