@@ -1,6 +1,6 @@
 import express from "express";
 import { probot } from "../probot.js";
-import { webHook } from "../controllers/webHookController.js";
+// import { webHook } from "../controllers/webHookController.js";
 const app = express();
 const router = express.Router();
 
