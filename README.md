@@ -1,6 +1,72 @@
-# Scriptocol 🔍
+# Scriptocol - AI-Powered Code Analysis
 
-An AI-powered GitHub App that automatically analyzes your code, detects issues, and creates pull requests with fixes.
+A GitHub App that automatically analyzes your code, finds issues, and creates PRs with fixes.
+
+## Setup Guide for Users
+
+After installing the app, you need to set up the following environment variables in your repository:
+
+1. Go to your repository settings
+2. Navigate to "Secrets and variables" → "Actions"
+3. Add the following secrets:
+
+   - `OPENAI_API_KEY`: Your OpenAI API key (get it from [OpenAI](https://platform.openai.com/api-keys))
+   - `GITHUB_TOKEN`: A GitHub Personal Access Token with the following permissions:
+     - `repo` (Full control of private repositories)
+     - `workflow` (Update GitHub Action workflows)
+
+### Required Permissions
+
+The app needs the following permissions to function:
+- Read repository contents
+- Create pull requests
+- Create branches
+- Push code changes
+- Read and write workflow files
+
+### What Happens After Setup
+
+1. When you push code to your repository:
+   - The app automatically analyzes your code
+   - Identifies potential issues and improvements
+   - Creates a PR with suggested fixes
+
+2. When you install the app on a repository:
+   - It analyzes the entire codebase
+   - Creates a PR with any necessary fixes
+   - Sets up automated analysis for future pushes
+
+### Troubleshooting
+
+If you encounter any issues:
+1. Check if all required secrets are set
+2. Ensure the app has the necessary permissions
+3. Check the Actions tab for any error logs
+4. Contact support if issues persist
+
+## Development Setup
+
+If you want to run the app locally:
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm run install-all
+   ```
+3. Set up environment variables in `server/.env`
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Features
+
+- Automatic code analysis
+- Security vulnerability detection
+- Code quality improvements
+- Best practice recommendations
+- Automated PR creation
+- Support for multiple languages (JavaScript, Python, Go)
 
 ## Features ✨
 

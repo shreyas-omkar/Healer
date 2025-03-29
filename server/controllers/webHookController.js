@@ -13,7 +13,7 @@ export const webHook = async (req, res) => {
                     const analyzeResponse = await analyze({
                         body: { 
                             repo: repo.full_name,
-                            lang: await detectLanguage(repo.owner.login, repo.name, repo.default_branch)
+                            lang: await detectLanguage(repo.full_name.split('/')[0], repo.name, repo.default_branch)
                         }
                     }, res);
                     
