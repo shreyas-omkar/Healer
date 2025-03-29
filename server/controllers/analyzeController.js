@@ -73,16 +73,32 @@ export const analyze = async (req, res) => {
 
         // Create PR with fixes
         console.log('Creating PR with fixes...');
-        const pr = await createPRWithFixes(owner, repo, branch, sampleIssues);
-        console.log('PR created:', pr);
+        try {
+            const pr = await createPRWithFixes(owner, repo, branch, sampleIssues);
+            console.log('PR created successfully:', pr);
 
-        return res.json({
-            issues: sampleIssues,
-            pr: pr
-        });
+            return res.json({
+                message: 'Analysis completed successfully',
+                issues: sampleIssues,
+                pr: pr,
+                status: 'success'
+            });
+        } catch (prError) {
+            console.error('Error creating PR:', prError);
+            // Still return the issues even if PR creation fails
+            return res.json({
+                message: 'Analysis completed but PR creation failed',
+                issues: sampleIssues,
+                error: prError.message,
+                status: 'partial_success'
+            });
+        }
     } catch (error) {
         console.error('Error in analyze:', error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ 
+            error: error.message,
+            status: 'error'
+        });
     }
 };
 
