@@ -60,7 +60,8 @@ export const webHook = async (req, res) => {
         });
 
         // Get repository files and analyze with AI
-        const files = await getRepoFiles(owner, repo, branch);
+        const repoString = `${owner}/${repo}`;
+        const files = await getRepoFiles(repoString);
         const analysis = await analyzeWithAI(files, repoLanguage);
 
         if (!analysis || analysis.length === 0) {
