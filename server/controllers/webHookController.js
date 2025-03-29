@@ -40,7 +40,7 @@ export const webHook = async (req, res) => {
             return sendResponse(200, { message: 'Ignoring non-push event' });
         }
 
-        console.log('Processing push event');
+            console.log('Processing push event');
         const payload = req.body;
         console.log('Repository details:', {
             name: payload.repository?.name,
