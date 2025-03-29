@@ -2,14 +2,9 @@ import express from "express";
 import { probotMiddleware } from "../probot.js";
 import { webHook } from "../controllers/webHookController.js";
 
-const app = express();
 const router = express.Router();
 
-app.use(express.json());
-
-app.use(express.urlencoded({ extended: true }));
-
-
+// Use probot middleware for GitHub webhook verification
 router.post("/", probotMiddleware, webHook);
 
 // Listen to PR & push events

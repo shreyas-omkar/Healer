@@ -11,14 +11,14 @@
   "dependencies": {
     "@babel/parser": "^7.27.0",
     "@babel/traverse": "^7.27.0",
-    "@octokit/rest": "^21.1.1",
+    "@octokit/rest": "^20.0.2",
     "acorn": "^8.14.1",
     "axios": "^1.8.4",
     "body-parser": "^2.2.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "openai": "^4.90.0",
-    "probot": "^13.4.4",
+    "probot": "^12.2.11",
     "pyodide": "^0.27.4"
   },
   "devDependencies": {
