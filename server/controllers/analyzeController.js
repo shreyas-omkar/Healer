@@ -271,9 +271,19 @@ async function analyzeWithAI(files, lang) {
 
         console.log('Analyzing code files:', codeFiles.map(f => f.path));
         
-        const fileContents = codeFiles.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
+        // Process files in chunks to avoid token limits
+        const chunkSize = 3; // Process 3 files at a time
+        const chunks = [];
+        for (let i = 0; i < codeFiles.length; i += chunkSize) {
+            chunks.push(codeFiles.slice(i, i + chunkSize));
+        }
+
+        let allIssues = [];
         
-        const prompt = `Analyze the following ${lang} codebase and identify ALL issues and improvements:
+        for (const chunk of chunks) {
+            const fileContents = chunk.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
+            
+            const prompt = `Analyze the following ${lang} codebase and identify ALL issues and improvements:
 
 ${fileContents}
 
@@ -317,53 +327,54 @@ Format your response as JSON with the following structure:
     ]
 }`;
 
-        console.log('Sending prompt to OpenAI...');
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo-preview",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything."
-                },
-                {
-                    role: "user",
-                    content: prompt
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 8000
-        });
+            console.log('Sending prompt to OpenAI for files:', chunk.map(f => f.path));
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4-turbo-preview",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything. Look for both obvious and subtle issues."
+                    },
+                    {
+                        role: "user",
+                        content: prompt
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 8000
+            });
 
-        const response = completion.choices[0].message.content;
-        console.log('OpenAI response:', response);
-        
-        try {
-            const analysis = JSON.parse(response);
-            console.log('Parsed analysis:', JSON.stringify(analysis, null, 2));
+            const response = completion.choices[0].message.content;
+            console.log('OpenAI response for chunk:', response);
             
-            // Log detailed issues
-            if (analysis.issues && analysis.issues.length > 0) {
-                console.log('\nDetailed Issues Found:');
-                analysis.issues.forEach((issue, index) => {
-                    console.log(`\nIssue ${index + 1}:`);
-                    console.log(`Type: ${issue.type}`);
-                    console.log(`Severity: ${issue.severity}`);
-                    console.log(`File: ${issue.file}`);
-                    console.log(`Line: ${issue.line}`);
-                    console.log(`Description: ${issue.description}`);
-                    console.log(`Impact: ${issue.impact}`);
-                    console.log(`Suggestion: ${issue.suggestion}`);
-                    console.log(`Example: ${issue.example}`);
-                });
-            } else {
-                console.log('No issues found in the analysis');
+            try {
+                const analysis = JSON.parse(response);
+                if (analysis.issues && analysis.issues.length > 0) {
+                    console.log(`Found ${analysis.issues.length} issues in chunk`);
+                    allIssues = [...allIssues, ...analysis.issues];
+                    
+                    // Log issues found in this chunk
+                    analysis.issues.forEach((issue, index) => {
+                        console.log(`\nIssue ${allIssues.length - analysis.issues.length + index + 1}:`);
+                        console.log(`Type: ${issue.type}`);
+                        console.log(`Severity: ${issue.severity}`);
+                        console.log(`File: ${issue.file}`);
+                        console.log(`Line: ${issue.line}`);
+                        console.log(`Description: ${issue.description}`);
+                        console.log(`Impact: ${issue.impact}`);
+                        console.log(`Suggestion: ${issue.suggestion}`);
+                        console.log(`Example: ${issue.example}`);
+                    });
+                } else {
+                    console.log('No issues found in this chunk');
+                }
+            } catch (error) {
+                console.error('Error parsing OpenAI response:', error);
             }
-            
-            return analysis;
-        } catch (error) {
-            console.error('Error parsing OpenAI response:', error);
-            return { issues: [] };
         }
+
+        console.log(`Total issues found across all chunks: ${allIssues.length}`);
+        return { issues: allIssues };
     } catch (error) {
         console.error('Error in analyzeWithAI:', error);
         return { issues: [] };
