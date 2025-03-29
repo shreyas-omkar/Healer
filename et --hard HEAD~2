@@ -1,0 +1,3 @@
+[33mb60338a[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: remove duplicate event handlers and update webhook route
+[33m413af3b[m fix: update private key handling to read from file only
+[33mf5d6867[m fix: update dependencies to resolve circular dependency issue

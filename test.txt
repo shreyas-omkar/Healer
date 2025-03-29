@@ -3,4 +3,8 @@ The server should analyze this change and create a PR if issues are found.
 Testing webhook with server running in background.
 Testing language detection and analysis.
 Testing PR creation with GitHub Actions workflow.
-Testing fixController and pushPRController integration. 
+Testing fixController and pushPRController integration.
+Testing webhook trigger for PR creation
+Testing webhook with production URL
+Testing webhook with environment variables setup
+Testing webhook with GitHub token configuration 
