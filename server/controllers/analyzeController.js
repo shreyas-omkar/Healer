@@ -9,17 +9,36 @@ dotenv.config();
 console.log('Environment check in analyzeController:');
 console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
 console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
+console.log('GITHUB_TOKEN exists:', !!process.env.GITHUB_TOKEN);
+console.log('GITHUB_TOKEN length:', process.env.GITHUB_TOKEN?.length);
 
 if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is not set');
 }
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+if (!process.env.GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN environment variable is not set');
+}
+
+let openai;
+try {
+    openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+    });
+} catch (error) {
+    console.error('Error initializing OpenAI:', error.message);
+    // Continue without OpenAI - we'll handle this in the analyze function
+}
 
 export const analyze = async (req, res) => {
     try {
+        if (!openai) {
+            return res.status(500).json({
+                error: 'OpenAI not initialized',
+                message: 'Please set OPENAI_API_KEY in environment variables'
+            });
+        }
+
         const { repo, lang } = req.body;
         
         if (!repo || !lang) {

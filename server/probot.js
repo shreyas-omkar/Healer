@@ -1,42 +1,106 @@
-import { Probot } from "probot";
-import fs from "fs";
-import dotenv from "dotenv";
-import { analyze } from "./controllers/analyzeController.js";
+import { createNodeMiddleware, createProbot } from "probot";
+import { config } from "dotenv";
+import fs from 'fs';
 import path from 'path';
+import { analyze } from "./controllers/analyzeController.js";
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Try to load .env file if it exists
-try {
-    dotenv.config();
-} catch (error) {
-    console.log('No .env file found, using environment variables from Render');
-}
-
-// Get private key from file
-const privateKeyPath = path.join(__dirname, 'privateKey.pem');
-if (!fs.existsSync(privateKeyPath)) {
-    throw new Error(`Private key file not found at: ${privateKeyPath}`);
-}
-
-const privateKey = fs.readFileSync(privateKeyPath, "utf8").trim();
-console.log('Private key loaded from file');
+// Load environment variables
+config();
 
 // Validate required environment variables
-const requiredEnvVars = ['APP_ID', 'WEBHOOK_SECRET', 'OPENAI_API_KEY'];
-for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-        throw new Error(`Missing required environment variable: ${envVar}`);
-    }
+const requiredEnvVars = ['APP_ID', 'WEBHOOK_SECRET', 'PRIVATE_KEY'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
 }
 
-export const probot = new Probot({
-    appId: Number(process.env.APP_ID),
-    privateKey,
+// Read private key from file or environment variable
+let privateKey = process.env.PRIVATE_KEY;
+if (!privateKey && fs.existsSync(path.join(process.cwd(), 'privateKey.pem'))) {
+    privateKey = fs.readFileSync(path.join(process.cwd(), 'privateKey.pem'), 'utf-8');
+}
+
+if (!privateKey) {
+    throw new Error('Private key not found in environment variable or file');
+}
+
+// Create probot app
+const probot = createProbot({
+    appId: process.env.APP_ID,
+    privateKey: privateKey,
     secret: process.env.WEBHOOK_SECRET,
 });
+
+// Configure the app
+async function app(app) {
+    app.log.info("Probot app is loaded!");
+
+    // Handle push events
+    app.on("push", async (context) => {
+        app.log.info("Push event received");
+        
+        // Get installation token
+        const installationId = context.payload.installation.id;
+        const token = await app.auth(installationId);
+        
+        // Set the token in environment for other controllers
+        process.env.GITHUB_TOKEN = token;
+        
+        // Forward to webhook endpoint
+        const response = await fetch('https://scriptocol.onrender.com/webhook', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-GitHub-Event': 'push'
+            },
+            body: JSON.stringify(context.payload)
+        });
+        
+        return response.json();
+    });
+
+    // Handle installation events
+    app.on("installation", async (context) => {
+        app.log.info("Installation event received");
+        
+        // Forward to webhook endpoint
+        const response = await fetch('https://scriptocol.onrender.com/webhook', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-GitHub-Event': 'installation'
+            },
+            body: JSON.stringify(context.payload)
+        });
+        
+        return response.json();
+    });
+
+    // Handle repository events
+    app.on("installation_repositories", async (context) => {
+        app.log.info("Installation repositories event received");
+        
+        // Forward to webhook endpoint
+        const response = await fetch('https://scriptocol.onrender.com/webhook', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-GitHub-Event': 'installation_repositories'
+            },
+            body: JSON.stringify(context.payload)
+        });
+        
+        return response.json();
+    });
+}
+
+// Export the middleware
+export const probotMiddleware = createNodeMiddleware(app, { probot });
 
 // Handle push events
 probot.on('push', async (context) => {
