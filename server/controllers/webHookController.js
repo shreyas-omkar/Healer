@@ -14,7 +14,21 @@ export const webHook = async (req, res) => {
     const sendResponse = (status, data) => {
         if (!responseSent) {
             responseSent = true;
-            res.status(status).json(data);
+            // Clean the data object to prevent circular references
+            const cleanData = JSON.parse(JSON.stringify(data, (key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                    // Remove circular references
+                    if (value.socket || value.parser) {
+                        return undefined;
+                    }
+                    // Clean nested objects
+                    return Object.fromEntries(
+                        Object.entries(value).filter(([_, v]) => v !== undefined)
+                    );
+                }
+                return value;
+            }));
+            res.status(status).json(cleanData);
         }
     };
 
@@ -97,6 +111,7 @@ export const webHook = async (req, res) => {
                     });
                 } catch (error) {
                     console.error(`Error updating file ${issue.file}:`, error);
+                    // Continue with other files even if one fails
                 }
             }
 
@@ -120,10 +135,18 @@ ${analysis.map(issue => `- **${issue.type}** (${issue.severity}): ${issue.descri
 
             console.log('PR created successfully:', pr.html_url);
 
+            // Clean PR data before sending response
+            const cleanPr = {
+                html_url: pr.html_url,
+                number: pr.number,
+                title: pr.title,
+                state: pr.state
+            };
+
             return sendResponse(200, {
                 message: `Found ${analysis.length} issues to fix`,
                 issues: analysis,
-                pr: pr,
+                pr: cleanPr,
                 status: 'success'
             });
         } catch (error) {
