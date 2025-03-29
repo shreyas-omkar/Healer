@@ -19,7 +19,7 @@ const openai = new OpenAI({
 });
 
 const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN
+    auth: process.env.GITHUB_TOKEN || process.env.PAT_TOKEN
 });
 
 export const analyze = async (req, res) => {
