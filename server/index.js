@@ -1,8 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import authRoutes from "./routes/authRoutes.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import cors from 'cors';
 import webhookRoutes from "./routes/webhookRoute.js";
 import apiRoutes from "./routes/apiRoutes.js";
 
@@ -22,11 +24,19 @@ if (result.error) {
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// CORS configuration
+app.use(cors({
+    origin: "http://localhost:5173", // Vite's default port
+    credentials: true, // Allow credentials (cookies)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
+app.use("/auth", authRoutes);
 app.use("/webhook", webhookRoutes);
 app.use("/api", apiRoutes);
 
@@ -35,7 +45,7 @@ app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok" });
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
