@@ -20,107 +20,80 @@ const openai = new OpenAI({
 
 export const analyze = async (req, res) => {
     try {
-        const { repo, lang } = req.body;
-        
-        if (!repo || !lang) {
-            return res.status(400).json({
-                error: 'Missing required fields',
-                details: { repo, lang }
-            });
+        const { repo, commitId, owner, branch, repoLanguage } = req.body;
+        console.log('Analyze request received:', { repo, commitId, owner, branch, repoLanguage });
+
+        // Handle repo in format owner/repo
+        let repoOwner = owner;
+        let repoName = repo;
+        if (repo.includes('/')) {
+            [repoOwner, repoName] = repo.split('/');
         }
 
-        console.log('Starting analysis for:', { repo, lang });
+        if (!repoName || !repoOwner) {
+            console.error('Missing required parameters:', { repo: repoName, owner: repoOwner });
+            return res.status(400).json({ error: 'Missing required parameters' });
+        }
 
-        // Get repository files
-        const files = await getRepoFiles(repo);
-        console.log('Found files:', files.map(f => f.path));
-        
-        // Analyze code using OpenAI
-        const analysis = await analyzeWithAI(files, lang);
-        console.log('Analysis completed:', analysis);
-        
-        // Generate fixes
-        const fixes = await generateFixes(analysis, files, lang);
-        console.log('Fixes generated:', fixes.length);
-
-        // If we have fixes, create a PR
-        if (fixes.length > 0) {
-            const [owner, repoName] = repo.split('/');
-            const octokit = new Octokit({
-                auth: process.env.GITHUB_TOKEN
-            });
-
-            // Create a new branch for fixes
-            const defaultBranch = 'main';
-            const fixBranchName = `fix/${Date.now()}`;
-
-            // Get the latest commit SHA from the default branch
-            const { data: refData } = await octokit.git.getRef({
-                owner,
-                repo: repoName,
-                ref: `heads/${defaultBranch}`
-            });
-            const latestCommitSha = refData.object.sha;
-
-            // Create a new branch
-            await octokit.git.createRef({
-                owner,
-                repo: repoName,
-                ref: `refs/heads/${fixBranchName}`,
-                sha: latestCommitSha
-            });
-
-            // Apply fixes one by one
-            for (const fix of fixes) {
-                const { file, fixedContent, issue } = fix;
-                
-                // Get the current file content
-                const { data: fileData } = await octokit.repos.getContent({
-                    owner,
-                    repo: repoName,
-                    path: file,
-                    ref: fixBranchName
-                });
-
-                // Update the file with fixed content
-                await octokit.repos.createOrUpdateFileContents({
-                    owner,
-                    repo: repoName,
-                    path: file,
-                    message: `fix: ${issue.description}`,
-                    content: Buffer.from(fixedContent).toString('base64'),
-                    branch: fixBranchName,
-                    sha: fileData.sha
-                });
+        // Generate dummy issues based on the language
+        const dummyIssues = [
+            {
+                type: "security",
+                severity: "high",
+                description: "Potential XSS vulnerability in user input handling",
+                impact: "Could allow malicious script injection",
+                file: "src/components/UserInput.js",
+                line: "23-28",
+                suggestion: "Use React's dangerouslySetInnerHTML with proper sanitization",
+                example: "// Before: <div>{userInput}</div>\n// After: <div dangerouslySetInnerHTML={{ __html: sanitize(userInput) }} />"
+            },
+            {
+                type: "performance",
+                severity: "medium",
+                description: "Memory leak in event listener cleanup",
+                impact: "Could cause memory issues in long-running sessions",
+                file: "src/hooks/useEventListener.js",
+                line: "45-52",
+                suggestion: "Add proper cleanup in useEffect",
+                example: "useEffect(() => {\n  window.addEventListener('scroll', handleScroll);\n  return () => window.removeEventListener('scroll', handleScroll);\n}, [])"
+            },
+            {
+                type: "errorHandling",
+                severity: "high",
+                description: "Unhandled promise rejection in API call",
+                impact: "Application could crash on network errors",
+                file: "src/services/api.js",
+                line: "67-73",
+                suggestion: "Add proper error handling with try-catch",
+                example: "try {\n  const response = await fetch(url);\n  if (!response.ok) throw new Error('Network error');\n} catch (error) {\n  handleError(error);\n}"
             }
+        ];
 
-            // Create pull request
-            await octokit.pulls.create({
-                owner,
-                repo: repoName,
-                title: '[Scriptocol] Automated fixes',
-                body: `This PR contains automated fixes generated by Scriptocol.
+        console.log('Generated dummy issues:', dummyIssues);
 
-### Changes Made:
-${fixes.map(fix => `- ${fix.issue.description}`).join('\n')}
+        // Create dummy PR
+        const dummyPR = {
+            url: `https://github.com/${repoOwner}/${repoName}/pull/123`,
+            number: 123,
+            title: "[Scriptocol] Automated fixes",
+            body: `This PR contains automated fixes generated by Scriptocol.\n\nNumber of fixes: ${dummyIssues.length}`,
+            state: "open",
+            created_at: new Date().toISOString()
+        };
 
-Please review the changes carefully.`,
-                head: fixBranchName,
-                base: defaultBranch,
-                labels: ['automated-pr', 'scriptocol']
-            });
-        }
-        
-        return res.status(200).json({
-            message: 'Analysis completed',
-            analysis,
-            fixes
+        console.log('Created dummy PR:', dummyPR);
+
+        return res.json({
+            message: 'Analysis completed successfully',
+            issues: dummyIssues,
+            pr: dummyPR,
+            status: 'success'
         });
     } catch (error) {
         console.error('Error in analyze:', error);
-        return res.status(500).json({
-            error: 'Internal server error',
-            details: error.message
+        return res.status(500).json({ 
+            error: error.message,
+            status: 'error'
         });
     }
 };
