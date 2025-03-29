@@ -30,8 +30,15 @@ export const analyze = async (req, res) => {
         const { repo, commitId, owner, branch, repoLanguage } = req.body;
         console.log('Analyze request received:', { repo, commitId, owner, branch, repoLanguage });
 
-        if (!repo || !owner) {
-            console.error('Missing required parameters:', { repo, owner });
+        // Handle repo in format owner/repo
+        let repoOwner = owner;
+        let repoName = repo;
+        if (repo.includes('/')) {
+            [repoOwner, repoName] = repo.split('/');
+        }
+
+        if (!repoName || !repoOwner) {
+            console.error('Missing required parameters:', { repo: repoName, owner: repoOwner });
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
@@ -74,7 +81,7 @@ export const analyze = async (req, res) => {
         // Create PR with fixes
         console.log('Creating PR with fixes...');
         try {
-            const pr = await createPRWithFixes(owner, repo, branch, sampleIssues);
+            const pr = await createPRWithFixes(repoOwner, repoName, branch, sampleIssues);
             console.log('PR created successfully:', pr);
 
             return res.json({
