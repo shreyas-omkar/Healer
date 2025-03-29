@@ -17,6 +17,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
+
+    env:
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout Code
@@ -81,7 +86,7 @@ jobs:
         if: env.FIXES_COUNT > 0
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           commit-message: "[Scriptocol] Automated fixes"
           title: "[Scriptocol] Automated fixes"
           body: |

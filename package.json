@@ -1,14 +1,11 @@
 {
   "name": "scriptocol",
   "version": "1.0.0",
-  "description": "AI-powered code analysis and automated fixes for your repositories",
-  "main": "server/index.js",
+  "description": "AI-powered code analysis and fix suggestion tool",
   "scripts": {
+    "dev": "cd server && npm run dev",
     "start": "cd server && npm start",
-    "build": "cd server && npm install",
-    "dev": "cd server && npm run dev"
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "private": true
 } 
