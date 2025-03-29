@@ -42,7 +42,12 @@ export const webHook = async (req, res) => {
 
         console.log('Processing push event');
         const payload = req.body;
-        console.log('Received webhook payload:', payload);
+        console.log('Repository details:', {
+            name: payload.repository?.name,
+            owner: payload.repository?.owner?.login,
+            full_name: payload.repository?.full_name,
+            clone_url: payload.repository?.clone_url
+        });
 
         // Extract repository information
         const repo = payload.repository.name;
@@ -61,8 +66,16 @@ export const webHook = async (req, res) => {
 
         // Get repository files and analyze with AI
         const repoString = `${owner}/${repo}`;
-        const files = await getRepoFiles(repoString);
-        const analysis = await analyzeWithAI(files, repoLanguage);
+        console.log('Calling getRepoFiles with:', repoString);
+        try {
+            const files = await getRepoFiles(repoString);
+            console.log('Successfully got repo files:', files.length);
+            const analysis = await analyzeWithAI(files, repoLanguage);
+            console.log('Analysis complete:', analysis.length, 'issues found');
+        } catch (error) {
+            console.error('Error in repository processing:', error);
+            throw error;
+        }
 
         if (!analysis || analysis.length === 0) {
             return sendResponse(200, {
