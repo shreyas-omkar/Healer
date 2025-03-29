@@ -161,42 +161,58 @@ async function getDirectoryContents(repo, path) {
 
 async function analyzeWithAI(files, lang) {
     try {
-        const fileContents = files.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
-        
-        const prompt = `Analyze the following ${lang} codebase for potential issues and improvements:
+        // Filter to only include code files
+        const codeFiles = files.filter(file => {
+            const ext = file.path.split('.').pop().toLowerCase();
+            return ['js', 'jsx', 'ts', 'tsx', 'py', 'go'].includes(ext);
+        });
+
+        // Process files in chunks of 2 to avoid token limits
+        const issues = [];
+        for (let i = 0; i < codeFiles.length; i += 2) {
+            const chunk = codeFiles.slice(i, i + 2);
+            const fileContents = chunk.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
+            
+            const prompt = `Quickly analyze these ${lang} files for critical issues. Focus on:
+1. Security vulnerabilities
+2. Performance bottlenecks
+3. Error handling gaps
+4. Code quality issues
 
 ${fileContents}
 
-Please identify:
-1. Code quality issues
-2. Potential bugs
-3. Performance improvements
-4. Security concerns
-5. Best practice violations
-
-Format your response as JSON with the following structure:
+Respond with a JSON array of issues in this format:
 {
     "issues": [
         {
-            "type": "bug|quality|performance|security|bestPractice",
-            "file": "path/to/file",
-            "line": "line number or range",
-            "description": "detailed description",
-            "suggestion": "suggested fix"
+            "type": "security|performance|errorHandling|quality",
+            "severity": "high|medium",
+            "description": "brief issue description",
+            "impact": "what could happen",
+            "file": "exact file path",
+            "line": "line numbers",
+            "suggestion": "concrete fix",
+            "example": "before/after code example"
         }
     ]
 }`;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo-preview",
-            messages: [
-                { role: "system", content: "You are a code analysis expert. Provide detailed, actionable feedback." },
-                { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" }
-        });
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4-turbo-preview",
+                messages: [
+                    { role: "system", content: "You are a critical code reviewer. Find real issues quickly." },
+                    { role: "user", content: prompt }
+                ],
+                response_format: { type: "json_object" }
+            });
 
-        return JSON.parse(completion.choices[0].message.content);
+            const result = JSON.parse(completion.choices[0].message.content);
+            if (result.issues) {
+                issues.push(...result.issues);
+            }
+        }
+
+        return { issues };
     } catch (error) {
         console.error('Error analyzing with AI:', error);
         throw error;
