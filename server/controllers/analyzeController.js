@@ -212,7 +212,7 @@ async function getDirectoryContents(repo, path) {
     }
 }
 
-async function analyzeWithAI(files, lang) {
+export async function analyzeWithAI(files, lang) {
     try {
         // Filter to only include code files
         const codeFiles = files.filter(file => {
