@@ -131,7 +131,6 @@ ${fixes.map(fix => {
     return `#### ${issue.file}
 - **Type:** ${issue.type}
 - **Severity:** ${issue.severity}
-- **Priority:** ${issue.priority}
 - **Description:** ${issue.description}
 - **Impact:** ${issue.impact}
 - **Suggestion:** ${issue.suggestion}
@@ -141,10 +140,6 @@ ${fixes.map(fix => {
 ### Summary
 - Total fixes: ${fixes.length}
 - Files modified: ${new Set(fixes.map(f => f.file)).size}
-- Priority breakdown:
-  - High: ${fixes.filter(f => f.issue.priority === 'high').length}
-  - Medium: ${fixes.filter(f => f.issue.priority === 'medium').length}
-  - Low: ${fixes.filter(f => f.issue.priority === 'low').length}
 
 Please review the changes carefully. Each fix includes:
 1. Root cause analysis
@@ -263,15 +258,15 @@ async function analyzeWithAI(files, lang) {
     try {
         const fileContents = files.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
         
-        const prompt = `You are a thorough code analysis expert. Analyze the following ${lang} codebase and identify ALL potential issues and improvements:
+        const prompt = `Analyze the following ${lang} codebase and identify ALL potential issues and improvements:
 
 ${fileContents}
 
-Please be extremely thorough and identify:
-1. Code quality issues (bad practices, poor structure, etc.)
-2. Potential bugs and edge cases
-3. Performance improvements and optimizations
-4. Security vulnerabilities and concerns
+Please identify:
+1. Code quality issues
+2. Potential bugs
+3. Performance improvements
+4. Security concerns
 5. Best practice violations
 6. Error handling issues
 7. Code duplication
@@ -300,13 +295,10 @@ Format your response as JSON with the following structure:
             "impact": "Potential impact of the issue",
             "file": "path/to/file",
             "line": "line number or range",
-            "suggestion": "Detailed suggestion for improvement",
-            "priority": "low|medium|high"
+            "suggestion": "Detailed suggestion for improvement"
         }
     ]
-}
-
-Be thorough and don't miss any issues. Include even minor improvements that could enhance code quality.`;
+}`;
 
         console.log('Sending prompt to OpenAI...');
         const completion = await openai.chat.completions.create({
@@ -314,7 +306,7 @@ Be thorough and don't miss any issues. Include even minor improvements that coul
             messages: [
                 {
                     role: "system",
-                    content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything."
+                    content: "You are a code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything."
                 },
                 {
                     role: "user",
@@ -345,7 +337,6 @@ Be thorough and don't miss any issues. Include even minor improvements that coul
                     console.log(`Description: ${issue.description}`);
                     console.log(`Impact: ${issue.impact}`);
                     console.log(`Suggestion: ${issue.suggestion}`);
-                    console.log(`Priority: ${issue.priority}`);
                 });
             }
             
