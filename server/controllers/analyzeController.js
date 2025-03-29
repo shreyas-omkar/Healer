@@ -70,97 +70,86 @@ export const analyze = async (req, res) => {
     }
 };
 
-async function getRepoFiles(repo) {
+async function getRepoFiles(owner, repo, branch) {
     try {
-        // Ensure repo is in the format owner/repo
-        if (!repo.includes('/')) {
-            throw new Error('Repository must be in the format owner/repo');
+        console.log(`Fetching repository contents for ${owner}/${repo} on branch ${branch}`);
+        
+        // First, get the default branch if not specified
+        if (!branch) {
+            const repoData = await octokit.rest.repos.get({
+                owner,
+                repo
+            });
+            branch = repoData.data.default_branch;
+            console.log(`Using default branch: ${branch}`);
         }
 
-        console.log('Fetching contents for repository:', repo);
-        const response = await axios.get(`https://api.github.com/repos/${repo}/contents`, {
-            headers: {
-                Authorization: `Bearer ${process.env.PAT_TOKEN}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
+        // Get the tree recursively
+        const { data: ref } = await octokit.rest.git.getRef({
+            owner,
+            repo,
+            ref: `heads/${branch}`
         });
-        
-        console.log('Found root files:', response.data.map(file => file.name));
-        
-        const files = [];
-        for (const item of response.data) {
-            if (item.type === 'file') {
+
+        console.log(`Got ref: ${ref.object.sha}`);
+
+        const { data: tree } = await octokit.rest.git.getTree({
+            owner,
+            repo,
+            tree_sha: ref.object.sha,
+            recursive: '1'
+        });
+
+        console.log(`Got tree with ${tree.tree.length} items`);
+
+        // Filter for files only (not directories)
+        const files = tree.tree.filter(item => item.type === 'blob');
+        console.log(`Found ${files.length} files`);
+
+        // Get contents for each file
+        const fileContents = await Promise.all(
+            files.map(async (file) => {
                 try {
-                    console.log(`Fetching content for file: ${item.path}`);
-                    const content = await axios.get(item.download_url);
-                    const fileContent = content.data;
-                    console.log(`File ${item.path} content length: ${fileContent.length}`);
-                    
-                    files.push({
-                        name: item.name,
-                        path: item.path,
-                        content: fileContent
+                    console.log(`Fetching content for: ${file.path}`);
+                    const { data } = await octokit.rest.repos.getContent({
+                        owner,
+                        repo,
+                        path: file.path,
+                        ref: branch
                     });
-                    console.log(`Successfully fetched content for: ${item.path}`);
+
+                    // Handle both string and object responses
+                    let content;
+                    if (typeof data === 'string') {
+                        content = data;
+                    } else if (data.content) {
+                        content = Buffer.from(data.content, 'base64').toString('utf-8');
+                    } else {
+                        console.log(`No content found for ${file.path}`);
+                        return null;
+                    }
+
+                    console.log(`Got content for ${file.path}, length: ${content.length}`);
+                    return {
+                        path: file.path,
+                        content: content
+                    };
                 } catch (error) {
-                    console.error(`Error fetching content for ${item.path}:`, error.message);
+                    console.error(`Error fetching content for ${file.path}:`, error.message);
+                    return null;
                 }
-            } else if (item.type === 'dir') {
-                console.log(`Processing directory: ${item.path}`);
-                // Recursively get contents of directories
-                const dirFiles = await getDirectoryContents(repo, item.path);
-                files.push(...dirFiles);
-            }
-        }
-        
-        console.log(`Total files processed: ${files.length}`);
-        console.log('Files to analyze:', files.map(f => f.path));
-        return files;
+            })
+        );
+
+        // Filter out any null results and log the final count
+        const validFiles = fileContents.filter(file => file !== null);
+        console.log(`Successfully fetched ${validFiles.length} files with content`);
+        console.log('Files:', validFiles.map(f => f.path));
+
+        return validFiles;
     } catch (error) {
-        console.error('Error getting repo files:', error);
+        console.error('Error in getRepoFiles:', error);
         throw error;
-    }
-}
-
-async function getDirectoryContents(repo, path) {
-    try {
-        console.log(`Fetching contents for directory: ${path}`);
-        const response = await axios.get(`https://api.github.com/repos/${repo}/contents/${path}`, {
-            headers: {
-                Authorization: `Bearer ${process.env.PAT_TOKEN}`,
-                Accept: 'application/vnd.github.v3+json'
-            }
-        });
-
-        const files = [];
-        for (const item of response.data) {
-            if (item.type === 'file') {
-                try {
-                    console.log(`Fetching content for file: ${item.path}`);
-                    const content = await axios.get(item.download_url);
-                    const fileContent = content.data;
-                    console.log(`File ${item.path} content length: ${fileContent.length}`);
-                    
-                    files.push({
-                        name: item.name,
-                        path: item.path,
-                        content: fileContent
-                    });
-                    console.log(`Successfully fetched content for: ${item.path}`);
-                } catch (error) {
-                    console.error(`Error fetching content for ${item.path}:`, error.message);
-                }
-            } else if (item.type === 'dir') {
-                console.log(`Processing subdirectory: ${item.path}`);
-                // Recursively get contents of subdirectories
-                const dirFiles = await getDirectoryContents(repo, item.path);
-                files.push(...dirFiles);
-            }
-        }
-        return files;
-    } catch (error) {
-        console.error(`Error getting contents for directory ${path}:`, error);
-        return [];
     }
 }
 
@@ -175,7 +164,7 @@ async function analyzeWithAI(files, lang) {
         console.log('Analyzing code files:', codeFiles.map(f => f.path));
         
         // Process files in chunks to avoid token limits
-        const chunkSize = 3; // Process 3 files at a time
+        const chunkSize = 2; // Reduced chunk size for better analysis
         const chunks = [];
         for (let i = 0; i < codeFiles.length; i += chunkSize) {
             chunks.push(codeFiles.slice(i, i + chunkSize));
@@ -237,7 +226,7 @@ Format your response as JSON with the following structure:
                 messages: [
                     {
                         role: "system",
-                        content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything. Look for both obvious and subtle issues. Always return a JSON response with an 'issues' array, even if empty."
+                        content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything. Look for both obvious and subtle issues. Always return a JSON response with an 'issues' array, even if empty. Be critical and thorough in your analysis."
                     },
                     {
                         role: "user",
@@ -377,88 +366,5 @@ Return only the fixed code without any explanations.`;
     } catch (error) {
         console.error('Error in generateFixes:', error);
         return [];
-    }
-}
-
-async function getRepoFiles(owner, repo, branch) {
-    try {
-        console.log(`Fetching repository contents for ${owner}/${repo} on branch ${branch}`);
-        
-        // First, get the default branch if not specified
-        if (!branch) {
-            const repoData = await octokit.rest.repos.get({
-                owner,
-                repo
-            });
-            branch = repoData.data.default_branch;
-            console.log(`Using default branch: ${branch}`);
-        }
-
-        // Get the tree recursively
-        const { data: ref } = await octokit.rest.git.getRef({
-            owner,
-            repo,
-            ref: `heads/${branch}`
-        });
-
-        console.log(`Got ref: ${ref.object.sha}`);
-
-        const { data: tree } = await octokit.rest.git.getTree({
-            owner,
-            repo,
-            tree_sha: ref.object.sha,
-            recursive: '1'
-        });
-
-        console.log(`Got tree with ${tree.tree.length} items`);
-
-        // Filter for files only (not directories)
-        const files = tree.tree.filter(item => item.type === 'blob');
-        console.log(`Found ${files.length} files`);
-
-        // Get contents for each file
-        const fileContents = await Promise.all(
-            files.map(async (file) => {
-                try {
-                    console.log(`Fetching content for: ${file.path}`);
-                    const { data } = await octokit.rest.repos.getContent({
-                        owner,
-                        repo,
-                        path: file.path,
-                        ref: branch
-                    });
-
-                    // Handle both string and object responses
-                    let content;
-                    if (typeof data === 'string') {
-                        content = data;
-                    } else if (data.content) {
-                        content = Buffer.from(data.content, 'base64').toString('utf-8');
-                    } else {
-                        console.log(`No content found for ${file.path}`);
-                        return null;
-                    }
-
-                    console.log(`Got content for ${file.path}, length: ${content.length}`);
-                    return {
-                        path: file.path,
-                        content: content
-                    };
-                } catch (error) {
-                    console.error(`Error fetching content for ${file.path}:`, error.message);
-                    return null;
-                }
-            })
-        );
-
-        // Filter out any null results and log the final count
-        const validFiles = fileContents.filter(file => file !== null);
-        console.log(`Successfully fetched ${validFiles.length} files with content`);
-        console.log('Files:', validFiles.map(f => f.path));
-
-        return validFiles;
-    } catch (error) {
-        console.error('Error in getRepoFiles:', error);
-        throw error;
     }
 }
