@@ -248,10 +248,11 @@ Format your response as JSON with the following structure:
     "issues": [
         {
             "type": "bug|quality|performance|security|bestPractice",
+            "severity": "low|medium|high",
+            "description": "Detailed description of the issue",
             "file": "path/to/file",
             "line": "line number or range",
-            "description": "detailed description",
-            "suggestion": "suggested fix"
+            "suggestion": "Suggested fix or improvement"
         }
     ]
 }`;
@@ -259,58 +260,95 @@ Format your response as JSON with the following structure:
         const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
             messages: [
-                { role: "system", content: "You are a code analysis expert. Provide detailed, actionable feedback." },
-                { role: "user", content: prompt }
+                {
+                    role: "system",
+                    content: "You are a code analysis expert. Analyze the code and provide detailed issues and suggestions in JSON format."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
             ],
-            response_format: { type: "json_object" }
+            temperature: 0.7,
+            max_tokens: 4000
         });
 
-        return JSON.parse(completion.choices[0].message.content);
+        const response = completion.choices[0].message.content;
+        console.log('OpenAI response:', response);
+        
+        try {
+            const analysis = JSON.parse(response);
+            return analysis;
+        } catch (error) {
+            console.error('Error parsing OpenAI response:', error);
+            return { issues: [] };
+        }
     } catch (error) {
-        console.error('Error analyzing with AI:', error);
-        throw error;
+        console.error('Error in analyzeWithAI:', error);
+        return { issues: [] };
     }
 }
 
 async function generateFixes(analysis, files, lang) {
     try {
-        const fixes = [];
-        
-        for (const issue of analysis.issues) {
-            const file = files.find(f => f.path === issue.file);
-            if (!file) continue;
-            
-            const prompt = `Fix the following issue in this ${lang} code:
+        if (!analysis.issues || analysis.issues.length === 0) {
+            console.log('No issues found in analysis');
+            return [];
+        }
 
+        const fixes = [];
+        for (const issue of analysis.issues) {
+            try {
+                const file = files.find(f => f.path === issue.file);
+                if (!file) {
+                    console.log(`File not found: ${issue.file}`);
+                    continue;
+                }
+
+                const prompt = `Fix the following issue in the ${lang} code:
+
+File: ${file.path}
 Issue: ${issue.description}
 Suggestion: ${issue.suggestion}
 
-File: ${file.path}
+Current code:
 \`\`\`
 ${file.content}
 \`\`\`
 
-Provide only the fixed code without explanations.`;
+Please provide the fixed code that addresses this issue. Return only the fixed code without any explanations.`;
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4-turbo-preview",
-                messages: [
-                    { role: "system", content: "You are a code fixing expert. Provide only the fixed code without explanations." },
-                    { role: "user", content: prompt }
-                ]
-            });
+                const completion = await openai.chat.completions.create({
+                    model: "gpt-4-turbo-preview",
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a code fixing expert. Provide only the fixed code without any explanations."
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 2000
+                });
 
-            fixes.push({
-                file: issue.file,
-                originalContent: file.content,
-                fixedContent: completion.choices[0].message.content.trim(),
-                issue: issue
-            });
+                const fixedContent = completion.choices[0].message.content.trim();
+                fixes.push({
+                    file: issue.file,
+                    fixedContent,
+                    issue
+                });
+            } catch (error) {
+                console.error(`Error generating fix for issue in ${issue.file}:`, error);
+            }
         }
-        
+
+        console.log(`Generated ${fixes.length} fixes`);
         return fixes;
     } catch (error) {
-        console.error('Error generating fixes:', error);
-        throw error;
+        console.error('Error in generateFixes:', error);
+        return [];
     }
 }
