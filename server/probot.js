@@ -50,7 +50,7 @@ async function app(app) {
         const token = await app.auth(installationId);
         
         // Set the token in environment for other controllers
-        process.env.GITHUB_TOKEN = token;
+        process.env.PAT_TOKEN = token;
         
         // Forward to webhook endpoint
         const response = await fetch('https://scriptocol.onrender.com/webhook', {

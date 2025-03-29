@@ -11,7 +11,7 @@ After installing the app, you need to set up the following environment variables
 3. Add the following secrets:
 
    - `OPENAI_API_KEY`: Your OpenAI API key (get it from [OpenAI](https://platform.openai.com/api-keys))
-   - `GITHUB_TOKEN`: A GitHub Personal Access Token with the following permissions:
+   - `PAT_TOKEN`: A GitHub Personal Access Token with the following permissions:
      - `repo` (Full control of private repositories)
      - `workflow` (Update GitHub Action workflows)
 

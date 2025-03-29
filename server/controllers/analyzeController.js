@@ -9,15 +9,15 @@ dotenv.config();
 console.log('Environment check in analyzeController:');
 console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
 console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
-console.log('GITHUB_TOKEN exists:', !!process.env.GITHUB_TOKEN);
-console.log('GITHUB_TOKEN length:', process.env.GITHUB_TOKEN?.length);
+console.log('PAT_TOKEN exists:', !!process.env.PAT_TOKEN);
+console.log('PAT_TOKEN length:', process.env.PAT_TOKEN?.length);
 
 if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is not set');
 }
 
-if (!process.env.GITHUB_TOKEN) {
-    throw new Error('GITHUB_TOKEN environment variable is not set');
+if (!process.env.PAT_TOKEN) {
+    throw new Error('PAT_TOKEN environment variable is not set');
 }
 
 let openai;
@@ -66,7 +66,7 @@ export const analyze = async (req, res) => {
         if (fixes.length > 0) {
             const [owner, repoName] = repo.split('/');
             const octokit = new Octokit({
-                auth: process.env.GITHUB_TOKEN
+                auth: process.env.PAT_TOKEN
             });
 
             // Create a new branch for fixes
@@ -154,7 +154,7 @@ async function getRepoFiles(repo) {
         console.log('Fetching contents for repository:', repo);
         const response = await axios.get(`https://api.github.com/repos/${repo}/contents`, {
             headers: {
-                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                Authorization: `Bearer ${process.env.PAT_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json'
             }
         });
@@ -192,7 +192,7 @@ async function getDirectoryContents(repo, path) {
     try {
         const response = await axios.get(`https://api.github.com/repos/${repo}/contents/${path}`, {
             headers: {
-                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                Authorization: `Bearer ${process.env.PAT_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json'
             }
         });

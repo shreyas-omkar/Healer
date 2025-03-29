@@ -10,7 +10,7 @@ export const fixCode = async (req, res) => {
 
         const [owner, repoName] = repo.split('/');
         const octokit = new Octokit({
-            auth: process.env.GITHUB_TOKEN
+            auth: process.env.PAT_TOKEN
         });
 
         // Create a new branch for fixes

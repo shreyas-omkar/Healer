@@ -13,7 +13,7 @@ export const pushPR = async (req, res) => {
 
         const [owner, repoName] = repo.split('/');
         const octokit = new Octokit({
-            auth: process.env.GITHUB_TOKEN
+            auth: process.env.PAT_TOKEN
         });
 
         // Trigger the GitHub Actions workflow for PR creation

@@ -91,7 +91,7 @@ async function detectLanguage(owner, repo, branch) {
             `https://api.github.com/repos/${owner}/${repo}/contents`,
             {
                 headers: {
-                    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                    Authorization: `Bearer ${process.env.PAT_TOKEN}`,
                     Accept: 'application/vnd.github.v3+json'
                 },
                 params: {
