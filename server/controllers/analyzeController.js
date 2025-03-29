@@ -164,28 +164,32 @@ async function getRepoFiles(repo) {
             }
         });
         
-        console.log('Found files:', response.data.map(file => file.name));
+        console.log('Found root files:', response.data.map(file => file.name));
         
         const files = [];
         for (const item of response.data) {
             if (item.type === 'file') {
                 try {
+                    console.log(`Fetching content for file: ${item.path}`);
                     const content = await axios.get(item.download_url);
                     files.push({
                         name: item.name,
                         path: item.path,
                         content: content.data
                     });
+                    console.log(`Successfully fetched content for: ${item.path}`);
                 } catch (error) {
                     console.error(`Error fetching content for ${item.path}:`, error.message);
                 }
             } else if (item.type === 'dir') {
+                console.log(`Processing directory: ${item.path}`);
                 // Recursively get contents of directories
                 const dirFiles = await getDirectoryContents(repo, item.path);
                 files.push(...dirFiles);
             }
         }
         
+        console.log(`Total files processed: ${files.length}`);
         return files;
     } catch (error) {
         console.error('Error getting repo files:', error);
@@ -195,6 +199,7 @@ async function getRepoFiles(repo) {
 
 async function getDirectoryContents(repo, path) {
     try {
+        console.log(`Fetching contents for directory: ${path}`);
         const response = await axios.get(`https://api.github.com/repos/${repo}/contents/${path}`, {
             headers: {
                 Authorization: `Bearer ${process.env.PAT_TOKEN}`,
@@ -206,16 +211,19 @@ async function getDirectoryContents(repo, path) {
         for (const item of response.data) {
             if (item.type === 'file') {
                 try {
+                    console.log(`Fetching content for file: ${item.path}`);
                     const content = await axios.get(item.download_url);
                     files.push({
                         name: item.name,
                         path: item.path,
                         content: content.data
                     });
+                    console.log(`Successfully fetched content for: ${item.path}`);
                 } catch (error) {
                     console.error(`Error fetching content for ${item.path}:`, error.message);
                 }
             } else if (item.type === 'dir') {
+                console.log(`Processing subdirectory: ${item.path}`);
                 // Recursively get contents of subdirectories
                 const dirFiles = await getDirectoryContents(repo, item.path);
                 files.push(...dirFiles);
@@ -257,12 +265,13 @@ Format your response as JSON with the following structure:
     ]
 }`;
 
+        console.log('Sending prompt to OpenAI...');
         const completion = await openai.chat.completions.create({
             model: "gpt-4-turbo-preview",
             messages: [
                 {
                     role: "system",
-                    content: "You are a code analysis expert. Analyze the code and provide detailed issues and suggestions in JSON format."
+                    content: "You are a code analysis expert. Analyze the code and provide detailed issues and suggestions in JSON format. Be thorough in identifying issues."
                 },
                 {
                     role: "user",
@@ -278,6 +287,8 @@ Format your response as JSON with the following structure:
         
         try {
             const analysis = JSON.parse(response);
+            console.log('Parsed analysis:', JSON.stringify(analysis, null, 2));
+            console.log('Number of issues found:', analysis.issues?.length || 0);
             return analysis;
         } catch (error) {
             console.error('Error parsing OpenAI response:', error);
@@ -291,14 +302,19 @@ Format your response as JSON with the following structure:
 
 async function generateFixes(analysis, files, lang) {
     try {
+        console.log('Starting generateFixes with analysis:', JSON.stringify(analysis, null, 2));
+        
         if (!analysis.issues || analysis.issues.length === 0) {
             console.log('No issues found in analysis');
             return [];
         }
 
+        console.log(`Found ${analysis.issues.length} issues to fix`);
         const fixes = [];
+        
         for (const issue of analysis.issues) {
             try {
+                console.log(`Processing issue in file: ${issue.file}`);
                 const file = files.find(f => f.path === issue.file);
                 if (!file) {
                     console.log(`File not found: ${issue.file}`);
@@ -318,12 +334,13 @@ ${file.content}
 
 Please provide the fixed code that addresses this issue. Return only the fixed code without any explanations.`;
 
+                console.log('Sending fix prompt to OpenAI...');
                 const completion = await openai.chat.completions.create({
                     model: "gpt-4-turbo-preview",
                     messages: [
                         {
                             role: "system",
-                            content: "You are a code fixing expert. Provide only the fixed code without any explanations."
+                            content: "You are a code fixing expert. Provide only the fixed code without any explanations. Make sure to fix all issues identified."
                         },
                         {
                             role: "user",
@@ -335,6 +352,8 @@ Please provide the fixed code that addresses this issue. Return only the fixed c
                 });
 
                 const fixedContent = completion.choices[0].message.content.trim();
+                console.log(`Generated fix for ${issue.file}`);
+                
                 fixes.push({
                     file: issue.file,
                     fixedContent,
