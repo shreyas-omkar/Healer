@@ -190,10 +190,13 @@ async function getRepoFiles(repo) {
                 try {
                     console.log(`Fetching content for file: ${item.path}`);
                     const content = await axios.get(item.download_url);
+                    const fileContent = content.data;
+                    console.log(`File ${item.path} content length: ${fileContent.length}`);
+                    
                     files.push({
                         name: item.name,
                         path: item.path,
-                        content: content.data
+                        content: fileContent
                     });
                     console.log(`Successfully fetched content for: ${item.path}`);
                 } catch (error) {
@@ -208,6 +211,7 @@ async function getRepoFiles(repo) {
         }
         
         console.log(`Total files processed: ${files.length}`);
+        console.log('Files to analyze:', files.map(f => f.path));
         return files;
     } catch (error) {
         console.error('Error getting repo files:', error);
@@ -231,10 +235,13 @@ async function getDirectoryContents(repo, path) {
                 try {
                     console.log(`Fetching content for file: ${item.path}`);
                     const content = await axios.get(item.download_url);
+                    const fileContent = content.data;
+                    console.log(`File ${item.path} content length: ${fileContent.length}`);
+                    
                     files.push({
                         name: item.name,
                         path: item.path,
-                        content: content.data
+                        content: fileContent
                     });
                     console.log(`Successfully fetched content for: ${item.path}`);
                 } catch (error) {
@@ -256,61 +263,36 @@ async function getDirectoryContents(repo, path) {
 
 async function analyzeWithAI(files, lang) {
     try {
-        const fileContents = files.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
+        // Filter out non-code files
+        const codeFiles = files.filter(file => {
+            const ext = file.path.split('.').pop().toLowerCase();
+            return ['js', 'jsx', 'ts', 'tsx', 'py', 'go'].includes(ext);
+        });
+
+        console.log('Analyzing code files:', codeFiles.map(f => f.path));
         
-        const prompt = `Analyze the following ${lang} codebase and provide a detailed analysis of issues and improvements:
+        const fileContents = codeFiles.map(file => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``).join('\n\n');
+        
+        const prompt = `Analyze the following ${lang} codebase and identify ALL issues and improvements:
 
 ${fileContents}
 
-Please provide a comprehensive analysis covering:
-1. Code Structure and Organization
-   - File organization
-   - Module dependencies
-   - Code duplication
-   - Architecture patterns
-
-2. Code Quality
-   - Naming conventions
-   - Code style consistency
-   - Function/method design
-   - Class organization
-   - Code complexity
-
-3. Error Handling
-   - Exception handling
-   - Error messages
-   - Error recovery
-   - Edge cases
-
-4. Performance
-   - Algorithm efficiency
-   - Resource usage
-   - Memory management
-   - Response times
-
-5. Security
-   - Input validation
-   - Authentication/Authorization
-   - Data protection
-   - API security
-
-6. Testing
-   - Test coverage
-   - Test quality
-   - Test organization
-   - Missing tests
-
-7. Documentation
-   - Code comments
-   - API documentation
-   - README files
-   - Usage examples
-
-8. Best Practices
-   - Language-specific best practices
-   - Framework usage
-   - Design patterns
-   - Code standards
+Please identify issues in the following categories:
+1. Code quality issues
+2. Potential bugs
+3. Performance improvements
+4. Security concerns
+5. Best practice violations
+6. Error handling issues
+7. Code duplication
+8. Missing documentation
+9. Inconsistent coding style
+10. Potential memory leaks
+11. API design issues
+12. Testing gaps
+13. Accessibility issues
+14. Maintainability concerns
+15. Scalability issues
 
 For each issue found, provide:
 1. A clear description of the problem
@@ -332,33 +314,7 @@ Format your response as JSON with the following structure:
             "suggestion": "Detailed suggestion for improvement",
             "example": "Example of how to fix the issue"
         }
-    ],
-    "summary": {
-        "totalIssues": "Total number of issues found",
-        "byType": {
-            "bug": "Number of bugs",
-            "quality": "Number of quality issues",
-            "performance": "Number of performance issues",
-            "security": "Number of security issues",
-            "bestPractice": "Number of best practice violations",
-            "errorHandling": "Number of error handling issues",
-            "duplication": "Number of code duplication issues",
-            "documentation": "Number of documentation issues",
-            "style": "Number of style issues",
-            "memory": "Number of memory issues",
-            "api": "Number of API issues",
-            "testing": "Number of testing issues",
-            "accessibility": "Number of accessibility issues",
-            "maintainability": "Number of maintainability issues",
-            "scalability": "Number of scalability issues"
-        },
-        "bySeverity": {
-            "critical": "Number of critical issues",
-            "high": "Number of high severity issues",
-            "medium": "Number of medium severity issues",
-            "low": "Number of low severity issues"
-        }
-    }
+    ]
 }`;
 
         console.log('Sending prompt to OpenAI...');
@@ -367,7 +323,7 @@ Format your response as JSON with the following structure:
             messages: [
                 {
                     role: "system",
-                    content: "You are a thorough code analysis expert. Your goal is to provide a comprehensive analysis of the codebase, identifying all potential issues and improvements. Be detailed and specific in your analysis."
+                    content: "You are a thorough code analysis expert. Your goal is to identify ALL potential issues and improvements in the code. Be comprehensive and don't miss anything."
                 },
                 {
                     role: "user",
@@ -385,20 +341,6 @@ Format your response as JSON with the following structure:
             const analysis = JSON.parse(response);
             console.log('Parsed analysis:', JSON.stringify(analysis, null, 2));
             
-            // Log summary
-            if (analysis.summary) {
-                console.log('\nAnalysis Summary:');
-                console.log('Total Issues:', analysis.summary.totalIssues);
-                console.log('\nIssues by Type:');
-                Object.entries(analysis.summary.byType).forEach(([type, count]) => {
-                    console.log(`${type}: ${count}`);
-                });
-                console.log('\nIssues by Severity:');
-                Object.entries(analysis.summary.bySeverity).forEach(([severity, count]) => {
-                    console.log(`${severity}: ${count}`);
-                });
-            }
-            
             // Log detailed issues
             if (analysis.issues && analysis.issues.length > 0) {
                 console.log('\nDetailed Issues Found:');
@@ -413,16 +355,18 @@ Format your response as JSON with the following structure:
                     console.log(`Suggestion: ${issue.suggestion}`);
                     console.log(`Example: ${issue.example}`);
                 });
+            } else {
+                console.log('No issues found in the analysis');
             }
             
             return analysis;
         } catch (error) {
             console.error('Error parsing OpenAI response:', error);
-            return { issues: [], summary: {} };
+            return { issues: [] };
         }
     } catch (error) {
         console.error('Error in analyzeWithAI:', error);
-        return { issues: [], summary: {} };
+        return { issues: [] };
     }
 }
 
