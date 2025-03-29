@@ -11,13 +11,14 @@ console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
 console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
 console.log('PAT_TOKEN exists:', !!process.env.PAT_TOKEN);
 console.log('PAT_TOKEN length:', process.env.PAT_TOKEN?.length);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is not set');
+    throw new Error('OPENAI_API_KEY environment variable is not set. Please set it in your environment variables.');
 }
 
 if (!process.env.PAT_TOKEN) {
-    throw new Error('PAT_TOKEN environment variable is not set');
+    throw new Error('PAT_TOKEN environment variable is not set. Please set it in your environment variables. For local development, check your .env file. For production, check your environment configuration.');
 }
 
 let openai;
