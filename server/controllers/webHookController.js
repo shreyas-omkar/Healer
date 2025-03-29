@@ -1,5 +1,4 @@
 import axios from "axios";
-import { analyze } from "./analyzeController.js";
 import { Octokit } from '@octokit/rest';
 import { getRepoFiles, analyzeWithAI } from "./analyzeController.js";
 
