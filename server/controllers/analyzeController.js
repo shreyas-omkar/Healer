@@ -133,7 +133,7 @@ ${analysis.issues.map(issue => `- **${issue.type}** (${issue.severity}): ${issue
     }
 };
 
-async function getRepoFiles(repo) {
+export async function getRepoFiles(repo) {
     try {
         // Ensure repo is in the format owner/repo
         if (!repo.includes('/')) {
