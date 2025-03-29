@@ -1,26 +1,11 @@
 {
   "name": "scriptocol",
   "version": "1.0.0",
-  "description": "A GitHub App that analyzes code and suggests improvements",
+  "description": "AI-powered code analysis and fix suggestion tool",
   "scripts": {
-    "start": "cd server && npm install && npm start",
-    "dev": "cd server && npm install && npm run dev",
-    "client": "cd client && npm install && npm run dev",
-    "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+    "dev": "cd server && npm run dev",
+    "start": "cd server && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shreyas-omkar/Healer.git"
-  },
-  "keywords": [
-    "github-app",
-    "code-analysis",
-    "automation"
-  ],
-  "author": "shreyas-omkar",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/shreyas-omkar/Healer/issues"
-  },
-  "homepage": "https://github.com/shreyas-omkar/Healer#readme"
+  "private": true
 } 

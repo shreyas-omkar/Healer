@@ -12,21 +12,22 @@ const __dirname = path.dirname(__filename);
 config();
 
 // Validate required environment variables
-const requiredEnvVars = ['APP_ID', 'WEBHOOK_SECRET', 'PRIVATE_KEY'];
+const requiredEnvVars = ['APP_ID', 'WEBHOOK_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
 }
 
-// Read private key from file or environment variable
-let privateKey = process.env.PRIVATE_KEY;
-if (!privateKey && fs.existsSync(path.join(process.cwd(), 'privateKey.pem'))) {
-    privateKey = fs.readFileSync(path.join(process.cwd(), 'privateKey.pem'), 'utf-8');
-}
-
-if (!privateKey) {
-    throw new Error('Private key not found in environment variable or file');
+// Read private key from file
+const privateKeyPath = path.join(__dirname, 'privateKey.pem');
+let privateKey;
+try {
+    privateKey = fs.readFileSync(privateKeyPath, 'utf-8');
+    console.log('Private key loaded from file');
+} catch (error) {
+    console.error('Error reading private key:', error);
+    throw new Error('Failed to read private key from file');
 }
 
 // Create probot app

@@ -5,6 +5,28 @@ export const webHook = async (req, res) => {
     try {
         console.log('Received webhook payload:', JSON.stringify(req.body, null, 2));
 
+        // Handle installation events
+        if (req.body.action === 'created' || req.body.action === 'added') {
+            const repositories = req.body.repositories || [];
+            for (const repo of repositories) {
+                try {
+                    const analyzeResponse = await analyze({
+                        body: { 
+                            repo: repo.full_name,
+                            lang: await detectLanguage(repo.owner.login, repo.name, repo.default_branch)
+                        }
+                    }, res);
+                    
+                    if (analyzeResponse?.body?.fixes?.length > 0) {
+                        console.log(`Found ${analyzeResponse.body.fixes.length} fixes for ${repo.full_name}`);
+                    }
+                } catch (error) {
+                    console.error(`Error analyzing repository ${repo.full_name}:`, error);
+                }
+            }
+            return res.status(200).json({ message: 'Installation event processed' });
+        }
+
         // Extract data from the payload for push events
         const repo = req.body.repository?.name;
         const commitId = req.body.head_commit?.id;
