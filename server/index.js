@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cors from 'cors';
 import webhookRoutes from "./routes/webhookRoute.js";
 import apiRoutes from "./routes/apiRoutes.js";
 
@@ -20,10 +21,21 @@ if (result.error) {
 }
 
 const app = express();
-app.use(express.json()); 
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes
 app.use("/webhook", webhookRoutes);
 app.use("/api", apiRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// Health check endpoint
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
