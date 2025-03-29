@@ -1,11 +1,11 @@
 import express from "express";
 import cors from "cors";
-import { webHook } from './controllers/webHookController.js';
+import { webHook } from './controllers/webhookController.js';
 import { analyze } from './controllers/analyzeController.js';
 import { auth } from './middleware/authMiddleware.js';
-import { authRoutes } from './routes/authRoutes.js';
-import { apiRoutes } from './routes/apiRoutes.js';
-import { webhookRoute } from './routes/webhookRoute.js';
+import authRoutes from './routes/authRoutes.js';
+import apiRoutes from './routes/apiRoutes.js';
+import webhookRoutes from './routes/webhookRoute.js';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -20,7 +20,7 @@ app.use(express.json());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api', auth, apiRoutes);
-app.use('/webhook', webHook);
+app.use('/webhook', webhookRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
