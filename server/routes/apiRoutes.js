@@ -7,10 +7,14 @@ import { checkAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Run Code Analysis
-router.post("/analyze", analyze);
-router.post("/fix",fixCode);
-router.post("/testwithai", testWithAi)
-router.post("/push_pr",pushPR);
+// Protected routes - require authentication
+router.post("/analyze", checkAuth, (req, res, next) => {
+    // Pass through to analyze controller without modifying it
+    next();
+}, analyze);
+
+router.post("/fix", checkAuth, fixCode);
+router.post("/testwithai", checkAuth, testWithAi);
+router.post("/push_pr", checkAuth, pushPR);
 
 export default router;

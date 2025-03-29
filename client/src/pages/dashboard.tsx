@@ -1,123 +1,120 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+type AnalysisType = "bugs" | "features";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [repoUrl, setRepoUrl] = useState("");
+  const [analysisType, setAnalysisType] = useState<AnalysisType>("bugs");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleAnalyze = async () => {
+    if (!repoUrl) {
+      setError("Please enter a repository URL");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError("");
+
+    try {
+      // TODO: Implement API call to analyze repository
+      console.log("Analyzing repo:", repoUrl, "for:", analysisType);
+    } catch (err) {
+      setError("Failed to analyze repository");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 font-league">
-      <nav className="w-full flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold hover:opacity-75 transition hover:cursor-pointer" onClick={() => navigate("/")}>Scriptocol</h1>
-        <button 
-          onClick={() => navigate("/login")}
-          className="px-4 py-2 rounded-full purpleGradient hover:cursor-pointer hover:opacity-75 transition"
+    <div className="min-h-screen bg-black text-white font-league">
+      <nav className="w-full flex justify-between items-center text-sm py-4 px-8 border-b border-gray-800">
+        <h2 
+          className="text-white hover:opacity-70 hover:cursor-pointer text-lg" 
+          onClick={() => navigate("/")}
         >
-          Logout
-        </button>
+          Scriptocol
+        </h2>
+        <div className="flex gap-6">
+          <button 
+            className="hover:opacity-70 hover:cursor-pointer text-white"
+            onClick={() => navigate("/")}
+          >
+            Home
+          </button>
+          <button
+            className="px-3 py-1.5 rounded-xl hover:opacity-70 purpleGradient hover:cursor-pointer"
+            onClick={() => navigate("/login")}
+          >
+            Logout
+          </button>
+        </div>
       </nav>
-      
-      <div className="space-y-6 font-league">
-        <div className="grid grid-cols-3 text-black gap-6">
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl font-bold mb-8 text-center">Repository Analyzer</h1>
           
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-6 text-black">
-            <h3 className="text-lg font-semibold mb-2">Total Repos</h3>
-            <p className="text-3xl font-bold">12</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6">
-            <h3 className="text-lg font-semibold mb-2">Active PRs</h3>
-            <p className="text-3xl font-bold">5</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6">
-            <h3 className="text-lg font-semibold mb-2">Contributions</h3>
-            <p className="text-3xl font-bold">28</p>
-          </div>
-        </div>
-
-        <div className="bg-gray-900 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 bg-gray-800 rounded-xl">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <p>Merged PR in repository-name</p>
-            </div>
-            <div className="flex items-center gap-4 p-4 bg-gray-800 rounded-xl">
-              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-              <p>Created new PR in repository-name</p>
-            </div>
-            <div className="flex items-center gap-4 p-4 bg-gray-800 rounded-xl">
-              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-              <p>Updated repository settings</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-900 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Your Repositories</h2>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-800 rounded-xl p-4 hover:bg-gray-700 cursor-pointer transition">
-              <h3 className="font-semibold">repository-name</h3>
-              <p className="text-sm text-gray-400">Last updated 2 days ago</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-4 hover:bg-gray-700 cursor-pointer transition">
-              <h3 className="font-semibold">another-repo</h3>
-              <p className="text-sm text-gray-400">Last updated 1 week ago</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-4 hover:bg-gray-700 cursor-pointer transition">
-              <h3 className="font-semibold">project-repo</h3>
-              <p className="text-sm text-gray-400">Last updated 3 days ago</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-900 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Pull Requests</h2>
-          <div className="space-y-4">
-            <div className="bg-gray-800 rounded-xl p-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Feature: Add new dashboard</h3>
-                <span className="px-3 py-1 rounded-full text-sm bg-blue-500">Open</span>
+          <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  GitHub Repository URL
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="https://github.com/username/repository"
+                    value={repoUrl}
+                    onChange={(e) => setRepoUrl(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-purple-500 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
               </div>
-              <p className="text-sm text-gray-400 mt-2">repository-name • Created 2 days ago</p>
-            </div>
-            <div className="bg-gray-800 rounded-xl p-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-semibold">Fix: Update styling</h3>
-                <span className="px-3 py-1 rounded-full text-sm bg-green-500">Merged</span>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Analysis Type
+                </label>
+                <div className="relative">
+                  <select
+                    value={analysisType}
+                    onChange={(e) => setAnalysisType(e.target.value as AnalysisType)}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-purple-500 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 appearance-none pr-10"
+                  >
+                    <option value="bugs">Find Bugs</option>
+                    <option value="features">Suggest Features</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-400 mt-2">another-repo • Merged 1 day ago</p>
+
+              {error && (
+                <p className="text-red-500 text-sm">{error}</p>
+              )}
+
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                className={`w-full py-3 rounded-xl text-white font-medium transition-all
+                  ${isAnalyzing 
+                    ? 'bg-gray-700 cursor-not-allowed' 
+                    : 'purpleGradient hover:opacity-90'
+                  }`}
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Analyze Repository'}
+              </button>
             </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-6">
-          <div className="bg-gray-900 rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Settings</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-800 rounded-xl">
-                <span>Email Notifications</span>
-                <button className="px-4 py-2 rounded-full purpleGradient hover:opacity-75 transition">
-                  Configure
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-gray-800 rounded-xl">
-                <span>Theme</span>
-                <button className="px-4 py-2 rounded-full purpleGradient hover:opacity-75 transition">
-                  Change
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-900 rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-            <button className="w-full px-6 py-3 rounded-xl purpleGradient hover:opacity-75 transition text-lg">
-              Raise a Pull Request
-            </button>
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
