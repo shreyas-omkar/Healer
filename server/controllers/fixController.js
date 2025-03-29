@@ -8,6 +8,14 @@ export const fixCode = async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        if (!process.env.PAT_TOKEN) {
+            return res.status(500).json({
+                error: 'Configuration Error',
+                message: 'PAT_TOKEN environment variable is not set. Please configure it in your environment settings.',
+                details: 'This token is required for GitHub API access.'
+            });
+        }
+
         const [owner, repoName] = repo.split('/');
         const octokit = new Octokit({
             auth: process.env.PAT_TOKEN

@@ -13,30 +13,34 @@ console.log('PAT_TOKEN exists:', !!process.env.PAT_TOKEN);
 console.log('PAT_TOKEN length:', process.env.PAT_TOKEN?.length);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
-if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is not set. Please set it in your environment variables.');
-}
-
-if (!process.env.PAT_TOKEN) {
-    throw new Error('PAT_TOKEN environment variable is not set. Please set it in your environment variables. For local development, check your .env file. For production, check your environment configuration.');
-}
-
+// Initialize OpenAI client only if API key exists
 let openai;
-try {
-    openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY
-    });
-} catch (error) {
-    console.error('Error initializing OpenAI:', error.message);
-    // Continue without OpenAI - we'll handle this in the analyze function
+if (process.env.OPENAI_API_KEY) {
+    try {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+    } catch (error) {
+        console.error('Error initializing OpenAI:', error.message);
+    }
 }
 
 export const analyze = async (req, res) => {
     try {
+        // Check for required environment variables
+        if (!process.env.PAT_TOKEN) {
+            return res.status(500).json({
+                error: 'Configuration Error',
+                message: 'PAT_TOKEN environment variable is not set. Please configure it in your environment settings.',
+                details: 'This token is required for GitHub API access.'
+            });
+        }
+
         if (!openai) {
             return res.status(500).json({
-                error: 'OpenAI not initialized',
-                message: 'Please set OPENAI_API_KEY in environment variables'
+                error: 'Configuration Error',
+                message: 'OpenAI client not initialized. Please check your OPENAI_API_KEY environment variable.',
+                details: 'This key is required for code analysis.'
             });
         }
 

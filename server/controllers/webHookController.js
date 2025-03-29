@@ -87,6 +87,11 @@ export const webHook = async (req, res) => {
 async function detectLanguage(owner, repo, branch) {
     try {
         console.log('Detecting language for:', `${owner}/${repo}`);
+        
+        if (!process.env.PAT_TOKEN) {
+            throw new Error('PAT_TOKEN environment variable is not set. Please configure it in your environment settings.');
+        }
+
         const response = await axios.get(
             `https://api.github.com/repos/${owner}/${repo}/contents`,
             {
