@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { Octokit } from '@octokit/rest';
 import dotenv from 'dotenv';
@@ -7,14 +6,15 @@ dotenv.config();
 
 // Debug environment variables
 console.log('Environment check in analyzeController:');
-// console.log('GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
 console.log('GEMINI_API_KEY length:', process.env.GEMINI_API_KEY?.length);
 
 if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY environment variable is not set');
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_ANALYSIS_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_FIX_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
 
 const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN || process.env.PAT_TOKEN
@@ -66,29 +66,35 @@ export const analyze = async (req, res) => {
                 sha: latestCommitSha
             });
 
+            // Generate fixes for issues
+            const fixes = await generateFixes(analysis, files, repoLanguage);
+
             // Apply fixes one by one
-            for (const issue of analysis.issues) {
-                const file = files.find(f => f.path === issue.file);
-                if (!file) continue;
+            for (const fix of fixes) {
+                if (!fix || !fix.file) continue;
 
-                // Get the current file content
-                const { data: fileData } = await octokit.repos.getContent({
-                    owner: repoOwner,
-                    repo: repoName,
-                    path: issue.file,
-                    ref: fixBranchName
-                });
+                try {
+                    // Get the current file content
+                    const { data: fileData } = await octokit.repos.getContent({
+                        owner: repoOwner,
+                        repo: repoName,
+                        path: fix.file,
+                        ref: fixBranchName
+                    });
 
-                // Update the file with fixed content
-                await octokit.repos.createOrUpdateFileContents({
-                    owner: repoOwner,
-                    repo: repoName,
-                    path: issue.file,
-                    message: `fix: ${issue.description}`,
-                    content: Buffer.from(issue.example.split('// After:')[1].trim()).toString('base64'),
-                    branch: fixBranchName,
-                    sha: fileData.sha
-                });
+                    // Update the file with fixed content
+                    await octokit.repos.createOrUpdateFileContents({
+                        owner: repoOwner,
+                        repo: repoName,
+                        path: fix.file,
+                        message: `fix: ${fix.issue.description}`,
+                        content: Buffer.from(fix.fixedContent).toString('base64'),
+                        branch: fixBranchName,
+                        sha: fileData.sha
+                    });
+                } catch (err) {
+                    console.error(`Error applying fix to ${fix.file}:`, err.message);
+                }
             }
 
             // Create pull request
@@ -248,27 +254,48 @@ Respond with a JSON array of issues in this format:
     ]
 }`;
 
-            // Initialize the Gemini Pro model
-            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-            
-            // Generate content
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const text = response.text();
+            // Call Gemini API directly using axios
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.2,
+                    topP: 0.8,
+                    topK: 40,
+                    maxOutputTokens: 8192,
+                    responseMimeType: "application/json"
+                }
+            };
+
+            const response = await axios.post(GEMINI_ANALYSIS_ENDPOINT, payload, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
             
             // Extract JSON from the response
-            // Need to handle potential formatting issues in the response
             let jsonResponse;
             try {
+                const text = response.data.candidates[0].content.parts[0].text;
                 // Try parsing the entire response as JSON
                 jsonResponse = JSON.parse(text);
             } catch (e) {
                 // If that fails, try to extract JSON using regex
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    jsonResponse = JSON.parse(jsonMatch[0]);
-                } else {
-                    console.warn('Could not parse JSON from Gemini response');
+                try {
+                    const text = response.data.candidates[0].content.parts[0].text;
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        jsonResponse = JSON.parse(jsonMatch[0]);
+                    } else {
+                        console.warn('Could not parse JSON from Gemini response');
+                        jsonResponse = { issues: [] };
+                    }
+                } catch (err) {
+                    console.error('Error parsing Gemini response:', err);
                     jsonResponse = { issues: [] };
                 }
             }
@@ -305,27 +332,46 @@ ${file.content}
 
 Provide only the fixed code without explanations.`;
 
-            // Initialize the Gemini Pro model
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-            
-            // Generate content
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            
-            // Get the text from the response
-            const fixedCode = response.text().trim();
-            
-            fixes.push({
-                file: issue.file,
-                originalContent: file.content,
-                fixedContent: fixedCode,
-                issue: issue
-            });
+            // Call Gemini API directly using axios
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }
+                ],
+                generationConfig: {
+                    temperature: 0.2,
+                    topP: 0.8,
+                    topK: 40,
+                    maxOutputTokens: 8192
+                }
+            };
+
+            try {
+                const response = await axios.post(GEMINI_FIX_ENDPOINT, payload, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Get the text from the response
+                const fixedCode = response.data.candidates[0].content.parts[0].text.trim();
+                
+                fixes.push({
+                    file: issue.file,
+                    originalContent: file.content,
+                    fixedContent: fixedCode,
+                    issue: issue
+                });
+            } catch (err) {
+                console.error(`Error generating fix for ${issue.file}:`, err.message);
+            }
         }
         
         return fixes;
     } catch (error) {
         console.error('Error generating fixes:', error);
-        throw error;
+        return [];
     }
 }
