@@ -249,7 +249,7 @@ Respond with a JSON array of issues in this format:
 }`;
 
             // Initialize the Gemini Pro model
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             
             // Generate content
             const result = await model.generateContent(prompt);
