@@ -1,4 +1,4 @@
-import { OpenAI } from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import { Octokit } from '@octokit/rest';
 import dotenv from 'dotenv';
@@ -7,16 +7,14 @@ dotenv.config();
 
 // Debug environment variables
 console.log('Environment check in analyzeController:');
-console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
-console.log('OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length);
+console.log('GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
+console.log('GEMINI_API_KEY length:', process.env.GEMINI_API_KEY?.length);
 
-if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is not set');
+if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY environment variable is not set');
 }
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN || process.env.PAT_TOKEN
@@ -43,7 +41,7 @@ export const analyze = async (req, res) => {
         const files = await getRepoFiles(`${repoOwner}/${repoName}`);
         console.log('Found files:', files.map(f => f.path));
 
-        // Analyze code using OpenAI
+        // Analyze code using Gemini
         const analysis = await analyzeWithAI(files, repoLanguage);
         console.log('Analysis completed:', analysis);
 
@@ -250,18 +248,33 @@ Respond with a JSON array of issues in this format:
     ]
 }`;
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4-turbo-preview",
-                messages: [
-                    { role: "system", content: "You are a critical code reviewer. Find real issues quickly." },
-                    { role: "user", content: prompt }
-                ],
-                response_format: { type: "json_object" }
-            });
+            // Initialize the Gemini Pro model
+            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            
+            // Generate content
+            const result = await model.generateContent(prompt);
+            const response = result.response;
+            const text = response.text();
+            
+            // Extract JSON from the response
+            // Need to handle potential formatting issues in the response
+            let jsonResponse;
+            try {
+                // Try parsing the entire response as JSON
+                jsonResponse = JSON.parse(text);
+            } catch (e) {
+                // If that fails, try to extract JSON using regex
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    jsonResponse = JSON.parse(jsonMatch[0]);
+                } else {
+                    console.warn('Could not parse JSON from Gemini response');
+                    jsonResponse = { issues: [] };
+                }
+            }
 
-            const result = JSON.parse(completion.choices[0].message.content);
-            if (result.issues) {
-                issues.push(...result.issues);
+            if (jsonResponse.issues) {
+                issues.push(...jsonResponse.issues);
             }
         }
 
@@ -292,18 +305,20 @@ ${file.content}
 
 Provide only the fixed code without explanations.`;
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4-turbo-preview",
-                messages: [
-                    { role: "system", content: "You are a code fixing expert. Provide only the fixed code without explanations." },
-                    { role: "user", content: prompt }
-                ]
-            });
-
+            // Initialize the Gemini Pro model
+            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+            
+            // Generate content
+            const result = await model.generateContent(prompt);
+            const response = result.response;
+            
+            // Get the text from the response
+            const fixedCode = response.text().trim();
+            
             fixes.push({
                 file: issue.file,
                 originalContent: file.content,
-                fixedContent: completion.choices[0].message.content.trim(),
+                fixedContent: fixedCode,
                 issue: issue
             });
         }
