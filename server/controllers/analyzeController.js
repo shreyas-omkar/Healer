@@ -254,54 +254,109 @@ Respond with a JSON array of issues in this format:
     ]
 }`;
 
-            // Call Gemini API directly using axios
-            const payload = {
-                contents: [
-                    {
-                        role: "user",
-                        parts: [{ text: prompt }]
-                    }
-                ],
-                generationConfig: {
-                    temperature: 0.2,
-                    topP: 0.8,
-                    topK: 40,
-                    maxOutputTokens: 8192,
-                    responseMimeType: "application/json"
-                }
-            };
-
-            const response = await axios.post(GEMINI_ANALYSIS_ENDPOINT, payload, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            // Extract JSON from the response
-            let jsonResponse;
             try {
-                const text = response.data.candidates[0].content.parts[0].text;
-                // Try parsing the entire response as JSON
-                jsonResponse = JSON.parse(text);
-            } catch (e) {
-                // If that fails, try to extract JSON using regex
-                try {
-                    const text = response.data.candidates[0].content.parts[0].text;
-                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        jsonResponse = JSON.parse(jsonMatch[0]);
-                    } else {
-                        console.warn('Could not parse JSON from Gemini response');
-                        jsonResponse = { issues: [] };
+                // Call Gemini API directly using axios
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [{ text: prompt }]
+                        }
+                    ],
+                    generationConfig: {
+                        temperature: 0.2,
+                        topP: 0.8,
+                        topK: 40,
+                        maxOutputTokens: 8192,
+                        responseMimeType: "application/json"
                     }
-                } catch (err) {
-                    console.error('Error parsing Gemini response:', err);
-                    jsonResponse = { issues: [] };
-                }
-            }
+                };
 
-            if (jsonResponse.issues) {
-                issues.push(...jsonResponse.issues);
+                const response = await axios.post(GEMINI_ANALYSIS_ENDPOINT, payload, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Extract text from the response
+                let responseText = '';
+                try {
+                    responseText = response.data.candidates[0].content.parts[0].text;
+                } catch (e) {
+                    console.warn('Unexpected response structure:', e.message);
+                    continue;
+                }
+                
+                // Advanced JSON extraction and parsing
+                let jsonResponse;
+                try {
+                    // First attempt: clean up and parse the text directly
+                    // Replace problematic escape sequences
+                    const cleanedText = responseText
+                        .replace(/\\\\/g, '\\') // Replace double backslashes with single
+                        .replace(/\\(?!["\\/bfnrt])/g, '\\\\') // Escape unescaped backslashes
+                        .replace(/\\x[0-9a-fA-F]{2}/g, '') // Remove hex escape sequences
+                        .replace(/\r?\n/g, '\\n'); // Normalize newlines
+                    
+                    jsonResponse = JSON.parse(cleanedText);
+                } catch (e1) {
+                    console.warn('First JSON parse attempt failed:', e1.message);
+                    
+                    try {
+                        // Second attempt: try to extract JSON using regex
+                        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            // Clean up the extracted JSON
+                            const extractedJson = jsonMatch[0]
+                                .replace(/\\\\/g, '\\')
+                                .replace(/\\(?!["\\/bfnrt])/g, '\\\\')
+                                .replace(/\\x[0-9a-fA-F]{2}/g, '')
+                                .replace(/\r?\n/g, '\\n');
+                            
+                            jsonResponse = JSON.parse(extractedJson);
+                        } else {
+                            throw new Error('No JSON object found in response');
+                        }
+                    } catch (e2) {
+                        console.warn('Second JSON parse attempt failed:', e2.message);
+                        
+                        // Third attempt: Manual JSON construction
+                        try {
+                            // Try to find issue blocks with regex
+                            const issueMatches = responseText.matchAll(/"type"\s*:\s*"([^"]+)"\s*,\s*"severity"\s*:\s*"([^"]+)"\s*,\s*"description"\s*:\s*"([^"]+)"\s*,\s*"impact"\s*:\s*"([^"]+)"\s*,\s*"file"\s*:\s*"([^"]+)"\s*,\s*"line"\s*:\s*"([^"]+)"\s*,\s*"suggestion"\s*:\s*"([^"]+)"\s*,\s*"example"\s*:\s*"([^"]+)"/g);
+                            
+                            const extractedIssues = [];
+                            for (const match of issueMatches) {
+                                extractedIssues.push({
+                                    type: match[1],
+                                    severity: match[2],
+                                    description: match[3],
+                                    impact: match[4],
+                                    file: match[5],
+                                    line: match[6],
+                                    suggestion: match[7],
+                                    example: match[8]
+                                });
+                            }
+                            
+                            jsonResponse = { issues: extractedIssues };
+                        } catch (e3) {
+                            console.warn('Third JSON parse attempt failed:', e3.message);
+                            jsonResponse = { issues: [] };
+                        }
+                    }
+                }
+
+                if (jsonResponse && jsonResponse.issues) {
+                    // Validate each issue has the required fields
+                    const validIssues = jsonResponse.issues.filter(issue => 
+                        issue.type && issue.severity && issue.description && issue.file);
+                    
+                    issues.push(...validIssues);
+                }
+            } catch (error) {
+                console.error('Error processing chunk:', error.message);
+                continue; // Continue with next chunk on error
             }
         }
 
