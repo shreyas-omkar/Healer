@@ -56,8 +56,6 @@ export const fixCode = async (req, res) => {
             // Decode content from base64
             const currentContent = Buffer.from(fileData.content, 'base64').toString();
             
-            // Apply the fix (this is a simplified version - in reality, you'd want to
-            // use a more sophisticated approach to apply the fixes)
             const fixedContent = applyFix(currentContent, suggestion);
 
             // Update the file with fixed content
