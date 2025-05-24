@@ -86,14 +86,8 @@ export const fixCode = async (req, res) => {
     }
 };
 
-// Helper function to apply a fix to the code
+
 function applyFix(content, suggestion) {
-    // This is a simplified version. In reality, you'd want to:
-    // 1. Parse the code to understand its structure
-    // 2. Locate the exact position where the fix needs to be applied
-    // 3. Apply the fix while preserving the code structure
-    // 4. Run tests to ensure the fix didn't break anything
-    
-    // For now, we'll just append the suggestion as a comment
+   
     return `${content}\n// TODO: ${suggestion}\n`;
 }
